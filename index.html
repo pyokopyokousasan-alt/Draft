@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     <meta name="robots" content="noindex, nofollow">
-    <meta property="og:title" content="臨床実習 希望調査システム">
-    <meta property="og:description" content="学生専用のログイン・入力用ページです。リンクにアクセスして提出してください。">
-    <meta property="og:image" content="https://example.com/thumbnail.png">
-    <meta property="og:url" content="https://your-site-url.com">
+    <meta property="og:title" content="ページにアクセスしてください">
+    <meta property="og:description" content="臨床実習 希望調査システム">
+
     <title>臨床実習 希望調査システム</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
@@ -26,7 +26,7 @@
 
 <div class="fixed-header">
     <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">
-        臨床実習 希望調査システム <span class="badge badge-info">Ver1.7</span>
+        臨床実習 希望調査システム <span class="badge badge-info">ver1.8</span>
     </div>
     <ul class="nav nav-tabs nav-fill" id="mainTab" role="tablist">
         <li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash" role="tab">現在の状況</a></li>
@@ -38,23 +38,23 @@
 <div class="container-fluid p-3">
     <div class="tab-content" id="mainTabContent">
         
-        <div class="tab-pane fade show active" id="dash" role="tabpanel">
+        <div class="tab-pane fade show active" id="dash" role="tablist">
             <div id="status-alert" class="alert alert-danger text-center font-weight-bold">
                 ⚠️ まだ希望調査が提出されていません！
             </div>
             
             <div class="card shadow-sm mb-3">
                 <div class="card-header bg-primary text-white font-weight-bold p-2" style="font-size:0.9rem;">
-                    🌟 あなたのAny枠 通過見込み
+                    🌟 あなたのAny枠 通過見込み (リアルタイム累積)
                 </div>
                 <div class="card-body p-2 bg-light" id="any-dashboard-body">
-                    <p class="text-muted text-center m-0">データを読み込み中...</p>
+                    <p class="text-muted text-center m-0">選択データを読み込み中...</p>
                 </div>
             </div>
 
             <div class="card shadow-sm">
                 <div class="card-header bg-secondary text-white font-weight-bold p-2" style="font-size:0.9rem;">
-                    🗓️ 提出済みの第1希望スケジュール
+                    🗓️ 第1希望スケジュール（仮カレンダー）
                 </div>
                 <div class="card-body p-3" id="calendar-body">
                     <p class="text-muted text-center">データを読み込み中...</p>
@@ -69,9 +69,7 @@
                 </div>
                 <div id="collapseRules" class="collapse show" data-parent="#form">
                     <div class="card-body p-2 text-danger font-weight-bold" style="font-size:0.8rem; background-color:#fffdf6;">
-                        <div class="mb-1">・Any枠内（Any1〜Any4）で、同じ講座を重複して選択することはできません。</div>
-                        <div class="mb-1">・院内内科、院内外科、マイナー科は、第一希望で規定数を満たしてください。</div>
-                        <div>・なりすまし防止のため、学籍番号は１つしか使えません。間違えたら宮崎まで連絡してください。</div>
+                        ・Any枠内（Any1〜Any4）で、同じ講座を重複して選択することはできません。また、第一希望から選んでください。
                     </div>
                 </div>
             </div>
@@ -117,15 +115,14 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyMjVcIhOeat7Fe6TPk0ys2W4BJl9zPRevKfGky6hg5cPxEzw0GzuO-gKiADgiEirtkuQ/exec"; 
+    const GAS_API_URL = "YOUR_GAS_WEB_APP_URL_HERE"; 
     let serverDepartments = [];
     let serverSlots = [];
     let serverAnyCounts = {};
-    let myLatestSubmission = null; 
     let liffUser = { uid: "test-uid-123456" }; 
 
     window.onload = function() {
-        liff.init({ liffId: "2010321278-kOScGbBq" })
+        liff.init({ liffId: "YOUR_LIFF_ID_HERE" })
             .then(() => {
                 if (!liff.isLoggedIn()) {
                     liff.login();
@@ -146,10 +143,6 @@
         fetch(`${GAS_API_URL}?uid=${liffUser.uid}`)
             .then(res => res.json())
             .then(data => {
-                if (!data.success) {
-                    alert("サーバーエラー: " + (data.message || "データの取得に失敗しました。"));
-                    return;
-                }
                 serverDepartments = data.departments;
                 serverSlots = data.slots;
                 serverAnyCounts = data.anyCounts || { Any_P1:{}, Any_P2:{}, Any_P3:{}, Any_P4:{} };
@@ -158,23 +151,14 @@
                 renderHistory(data.history);
                 
                 if(data.history && data.history.length > 0) {
-                    myLatestSubmission = data.history[0]; 
-                    document.getElementById("student_id").value = myLatestSubmission.student_id;
-                    applyFormValues(myLatestSubmission);
-                    
+                    const latest = data.history[0];
+                    document.getElementById("student_id").value = latest.student_id;
+                    applyFormValues(latest);
                     document.getElementById("status-alert").className = "alert alert-success text-center font-weight-bold";
                     document.getElementById("status-alert").innerHTML = "🎉 希望調査は提出済みです（修正再提出も可能）";
-                } else {
-                    myLatestSubmission = null;
-                    document.getElementById("status-alert").className = "alert alert-danger text-center font-weight-bold";
-                    document.getElementById("status-alert").innerHTML = "⚠️ まだ希望調査が提出されていません！";
                 }
                 
                 updateDashboard();
-            })
-            .catch(err => {
-                console.error(err);
-                alert("データの読み込み中にエラーが発生しました。");
             });
     }
 
@@ -184,7 +168,7 @@
             anyHtml += `
                 <div class="form-group row mb-2 align-items-center">
                     <label class="col-4 font-weight-bold mb-0 pr-0">Any枠 ${p}:</label>
-                    <div class="col-8"><select class="form-control form-control-sm any-select" id="Any_P${p}">${buildDeptOptions()}</select></div>
+                    <div class="col-8"><select class="form-control form-control-sm any-select" id="Any_P${p}" onchange="updateDashboard()">${buildDeptOptions()}</select></div>
                 </div>`;
         }
         document.getElementById("any-fields-container").innerHTML = anyHtml;
@@ -196,7 +180,7 @@
                     <span class="badge badge-dark mb-1">${slot}</span>
                     <div class="form-group row mb-1 align-items-center">
                         <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(P1):</label>
-                        <div class="col-8"><select class="form-control form-control-sm slot-p1" id="${slot}_P1">${buildDeptOptions()}</select></div>
+                        <div class="col-8"><select class="form-control form-control-sm slot-p1" id="${slot}_P1" onchange="updateDashboard()">${buildDeptOptions()}</select></div>
                     </div>`;
             for(let p=2; p<=5; p++) {
                 slotHtml += `
@@ -213,7 +197,7 @@
     function buildDeptOptions() {
         let options = '<option value="">-- 選択してください --</option>';
         serverDepartments.forEach(d => {
-            options += `<option value="${d.id}">${d.name} (倍率:${d.ratio})</option>`;
+            options += `<option value="${d.id}">${d.name} (倍率:${d.ratio})</option>';
         });
         return options;
     }
@@ -230,12 +214,12 @@
     }
 
     function updateDashboard() {
-        // 1. カレンダー(一般枠)の描画
         let calHtml = "";
         serverSlots.forEach(slot => {
-            let val = myLatestSubmission ? myLatestSubmission[`${slot}_P1`] : "";
+            let el = document.getElementById(`${slot}_P1`);
+            let val = el ? el.value : "";
             let dept = serverDepartments.find(d => d.id == val);
-            let name = dept ? dept.name : '<span class="text-muted">未提出</span>';
+            let name = dept ? dept.name : '<span class="text-muted">未選択</span>';
             let ratioStr = dept ? ` [リアルタイム倍率: ${dept.ratio}]` : "";
             calHtml += `
                 <div class="timeline-item">
@@ -245,15 +229,15 @@
         });
         document.getElementById("calendar-body").innerHTML = calHtml;
 
-        // 2. Any枠 通過見込みの描画
         let anyHtml = "";
         let cumulativeVotes = {}; 
         const anyKeys = ["Any_P1", "Any_P2", "Any_P3", "Any_P4"];
 
         anyKeys.forEach((key, idx) => {
-            let val = myLatestSubmission ? myLatestSubmission[key] : "";
+            let el = document.getElementById(key);
+            let val = el ? el.value : "";
             if (!val) {
-                anyHtml += `<div class="p-2 border-bottom bg-white rounded mb-1 text-muted" style="font-size:0.8rem;">Any枠 ${idx+1}: 未提出</div>`;
+                anyHtml += `<div class="p-1 text-muted border-bottom" style="font-size:0.8rem;">Any枠 ${idx+1}: 未選択</div>`;
                 return;
             }
 
@@ -283,10 +267,7 @@
     }
 
     function renderHistory(history) {
-        if(!history || history.length === 0) {
-            document.getElementById("history-container").innerHTML = '<p class="text-muted text-center">履歴はありません。</p>';
-            return;
-        }
+        if(!history || history.length === 0) return;
         let html = "";
         history.forEach((h, idx) => {
             let isLatest = (idx === 0) ? '<span class="badge badge-success">有効な最新データ</span>' : '<span class="badge badge-secondary">過去のログ</span>';
@@ -311,6 +292,7 @@
             return;
         }
 
+        // Any枠内の重複チェック
         let anyValues = [];
         for(let p=1; p<=4; p++) {
             let val = document.getElementById(`Any_P${p}`).value;
@@ -332,20 +314,16 @@
 
         if (!confirm("希望データを送信します。よろしいですか？")) return;
 
-        try {
-            const token = liff.getAccessToken(); 
-            payload["access_token"] = token;     
+        const token = liff.getAccessToken(); 
+        payload["access_token"] = token;     
 
-            fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
-                .then(res => res.json())
-                .then(res => {
-                    alert(res.message);
-                    if(res.success) { initializeApp(); }
-                })
-                .catch(err => alert("通信エラーが発生しました。" + err));
-        } catch(e) {
-            alert("LINEトークンの取得に失敗しました。LINEアプリ内で実行してください。");
-        }
+        fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
+            .then(res => res.json())
+            .then(res => {
+                alert(res.message);
+                if(res.success) { initializeApp(); }
+            })
+            .catch(err => alert("通信エラーが発生しました。" + err));
     }
 </script>
 </body>
