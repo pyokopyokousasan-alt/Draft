@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <meta name="robots" content="noindex, nofollow">
     <meta property="og:title" content="ページにアクセスしてください">
     <meta property="og:description" content="臨床実習 希望調査システム">
+
     <title>臨床実習 希望調査システム</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
@@ -26,7 +26,7 @@
 
 <div class="fixed-header">
     <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">
-        臨床実習 希望調査システム <span class="badge badge-info">Dashboard連動版</span>
+        臨床実習 希望調査システム <span class="badge badge-info">リアルタイム連動版</span>
     </div>
     <ul class="nav nav-tabs nav-fill" id="mainTab" role="tablist">
         <li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash" role="tab">現在の状況</a></li>
@@ -45,16 +45,16 @@
             
             <div class="card shadow-sm mb-3">
                 <div class="card-header bg-primary text-white font-weight-bold p-2" style="font-size:0.9rem;">
-                    🌟 あなたのAny枠 通過見込み (リアルタイム累積)
+                    🌟 あなたのAny枠 通過見込み (スプレッドシート集計基準)
                 </div>
                 <div class="card-body p-2 bg-light" id="any-dashboard-body">
-                    <p class="text-muted text-center m-0">選択データを読み込み中...</p>
+                    <p class="text-muted text-center m-0">データを読み込み中...</p>
                 </div>
             </div>
 
             <div class="card shadow-sm">
                 <div class="card-header bg-secondary text-white font-weight-bold p-2" style="font-size:0.9rem;">
-                    🗓️ 第1希望スケジュール（仮カレンダー）
+                    🗓️ 提出済みの第1希望スケジュール
                 </div>
                 <div class="card-body p-3" id="calendar-body">
                     <p class="text-muted text-center">データを読み込み中...</p>
@@ -65,12 +65,11 @@
         <div class="tab-pane fade" id="form" role="tabpanel">
             <div class="card mb-3 border-warning">
                 <div class="card-header bg-warning text-dark font-weight-bold p-2" id="headingRules" data-toggle="collapse" data-target="#collapseRules" style="cursor: pointer; font-size:0.85rem;">
-                    💡 希望提出の厳格ルール (タップで開閉 ▲)
+                    💡 希望提出のルール (タップで開閉 ▲)
                 </div>
-                <div id="collapseRules" class="collapse" data-parent="#form">
-                    <div class="card-body p-2 text-danger（小） font-weight-bold" style="font-size:0.8rem; background-color:#fffdf6;">
-                        ・Any枠は同一講座を重複選択できません。<br>
-                        ・一般クールのP1（第1希望）に選んだ講座のみ、Any枠に配置できます。
+                <div id="collapseRules" class="collapse show" data-parent="#form">
+                    <div class="card-body p-2 text-danger font-weight-bold" style="font-size:0.8rem; background-color:#fffdf6;">
+                        ・Any枠内（Any1〜Any4）で、同じ講座を重複して選択することはできません。
                     </div>
                 </div>
             </div>
@@ -116,11 +115,12 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyMjVcIhOeat7Fe6TPk0ys2W4BJl9zPRevKfGky6hg5cPxEzw0GzuO-gKiADgiEirtkuQ/exec"; 
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyMjVcIhOeat7Fe6TPk0ys2W4BJl9zPRevKfGky6hg5cPxEzw0GzuO-gKiADgiEirtkuQ/execE"; 
     let serverDepartments = [];
     let serverSlots = [];
     let serverAnyCounts = {};
-    let liffUser = { uid: "test-uid-123456" }; // デフォルトテスト用
+    let myLatestSubmission = null; // 本人の最新提出ログ保持用
+    let liffUser = { uid: "test-uid-123456" }; 
 
     window.onload = function() {
         liff.init({ liffId: "2010321278-kOScGbBq" })
@@ -146,17 +146,23 @@
             .then(data => {
                 serverDepartments = data.departments;
                 serverSlots = data.slots;
+                // スプレッドシートから引き抜いた全学生の最新集計データを代入
                 serverAnyCounts = data.anyCounts || { Any_P1:{}, Any_P2:{}, Any_P3:{}, Any_P4:{} };
                 
                 buildFormFields();
                 renderHistory(data.history);
                 
                 if(data.history && data.history.length > 0) {
-                    const latest = data.history[0];
-                    document.getElementById("student_id").value = latest.student_id;
-                    applyFormValues(latest);
+                    myLatestSubmission = data.history[0]; 
+                    document.getElementById("student_id").value = myLatestSubmission.student_id;
+                    applyFormValues(myLatestSubmission);
+                    
                     document.getElementById("status-alert").className = "alert alert-success text-center font-weight-bold";
                     document.getElementById("status-alert").innerHTML = "🎉 希望調査は提出済みです（修正再提出も可能）";
+                } else {
+                    myLatestSubmission = null;
+                    document.getElementById("status-alert").className = "alert alert-danger text-center font-weight-bold";
+                    document.getElementById("status-alert").innerHTML = "⚠️ まだ希望調査が提出されていません！";
                 }
                 
                 updateDashboard();
@@ -169,7 +175,7 @@
             anyHtml += `
                 <div class="form-group row mb-2 align-items-center">
                     <label class="col-4 font-weight-bold mb-0 pr-0">Any枠 ${p}:</label>
-                    <div class="col-8"><select class="form-control form-control-sm any-select" id="Any_P${p}" onchange="updateDashboard()">${buildDeptOptions()}</select></div>
+                    <div class="col-8"><select class="form-control form-control-sm any-select" id="Any_P${p}">${buildDeptOptions()}</select></div>
                 </div>`;
         }
         document.getElementById("any-fields-container").innerHTML = anyHtml;
@@ -181,7 +187,7 @@
                     <span class="badge badge-dark mb-1">${slot}</span>
                     <div class="form-group row mb-1 align-items-center">
                         <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(P1):</label>
-                        <div class="col-8"><select class="form-control form-control-sm slot-p1" id="${slot}_P1" onchange="updateDashboard()">${buildDeptOptions()}</select></div>
+                        <div class="col-8"><select class="form-control form-control-sm slot-p1" id="${slot}_P1">${buildDeptOptions()}</select></div>
                     </div>`;
             for(let p=2; p<=5; p++) {
                 slotHtml += `
@@ -198,7 +204,7 @@
     function buildDeptOptions() {
         let options = '<option value="">-- 選択してください --</option>';
         serverDepartments.forEach(d => {
-            options += `<option value="${d.id}">${d.name} (倍率:${d.ratio})</option>`;
+            options += `<option value="${d.id}">${d.name} (倍率:${d.ratio})</option>';
         });
         return options;
     }
@@ -215,13 +221,12 @@
     }
 
     function updateDashboard() {
-        // 1. カレンダー(一般枠)の描画
+        // 1. カレンダー(一般枠)の描画 - スプレッドシート側の最新確定値から引く
         let calHtml = "";
         serverSlots.forEach(slot => {
-            let el = document.getElementById(`${slot}_P1`);
-            let val = el ? el.value : "";
+            let val = myLatestSubmission ? myLatestSubmission[`${slot}_P1`] : "";
             let dept = serverDepartments.find(d => d.id == val);
-            let name = dept ? dept.name : '<span class="text-muted">未選択</span>';
+            let name = dept ? dept.name : '<span class="text-muted">未提出</span>';
             let ratioStr = dept ? ` [リアルタイム倍率: ${dept.ratio}]` : "";
             calHtml += `
                 <div class="timeline-item">
@@ -231,23 +236,22 @@
         });
         document.getElementById("calendar-body").innerHTML = calHtml;
 
-        // 2. Any枠 通過見込み（リアルタイム累積）の計算と描画
+        // 2. Any枠 通過見込み - スプレッドシート側の集計データ(serverAnyCounts)から直接計算
         let anyHtml = "";
         let cumulativeVotes = {}; 
         const anyKeys = ["Any_P1", "Any_P2", "Any_P3", "Any_P4"];
 
         anyKeys.forEach((key, idx) => {
-            let el = document.getElementById(key);
-            let val = el ? el.value : "";
+            let val = myLatestSubmission ? myLatestSubmission[key] : "";
             if (!val) {
-                anyHtml += `<div class="p-1 text-muted border-bottom" style="font-size:0.8rem;">Any枠 ${idx+1}: 未選択</div>`;
+                anyHtml += `<div class="p-1 text-muted border-bottom" style="font-size:0.8rem;">Any枠 ${idx+1}: 未提出</div>`;
                 return;
             }
 
             let dept = serverDepartments.find(d => d.id == val);
             if (!dept) return;
 
-            // 累積票数の計算 (Any1=1のみ, Any2=1+2, Any3=1+2+3...)
+            // スプレッドシートから引っ張ってきた全学生の該当Anyキーの投票数を累積に加算
             cumulativeVotes[val] = (cumulativeVotes[val] || 0) + (serverAnyCounts[key][val] || 0);
             
             let totalCapacity = dept.totalCapacity || 15; 
@@ -296,6 +300,18 @@
             return;
         }
 
+        let anyValues = [];
+        for(let p=1; p<=4; p++) {
+            let val = document.getElementById(`Any_P${p}`).value;
+            if(val) {
+                if(anyValues.includes(val)) {
+                    alert("エラー：Any枠の中で同じ講座を重複して選択することはできません。");
+                    return;
+                }
+                anyValues.push(val);
+            }
+        }
+
         let payload = { line_uid: liffUser.uid, student_id: studentId };
         
         for(let p=1; p<=4; p++) { payload[`Any_P${p}`] = document.getElementById(`Any_P${p}`).value; }
@@ -305,7 +321,6 @@
 
         if (!confirm("希望データを送信します。よろしいですか？")) return;
 
-        // LINE認証トークンをパケットに強制添付
         const token = liff.getAccessToken(); 
         payload["access_token"] = token;     
 
@@ -320,6 +335,6 @@
 </script>
 </body>
 </html>
-</script>
+
 </body>
 </html>
