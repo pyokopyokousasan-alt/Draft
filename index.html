@@ -197,7 +197,7 @@
     function buildDeptOptions() {
         let options = '<option value="">-- 選択してください --</option>';
         serverDepartments.forEach(d => {
-            options += `<option value="${d.id}">${d.name} (倍率:${d.ratio})</option>';
+              options += `<option value="${d.id}">${d.name} (倍率:${d.ratio})</option>`;
         });
         return options;
     }
