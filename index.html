@@ -26,7 +26,7 @@
 
 <div class="fixed-header">
     <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">
-        臨床実習 希望調査システム <span class="badge badge-info">Ver1.5</span>
+        臨床実習 希望調査システム <span class="badge badge-info">Ver1.6</span>
     </div>
     <ul class="nav nav-tabs nav-fill" id="mainTab" role="tablist">
         <li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash" role="tab">現在の状況</a></li>
@@ -38,7 +38,7 @@
 <div class="container-fluid p-3">
     <div class="tab-content" id="mainTabContent">
         
-        <div class="tab-pane fade show active" id="dash" role="tablist">
+        <div class="tab-pane fade show active" id="dash" role="tabpanel">
             <div id="status-alert" class="alert alert-danger text-center font-weight-bold">
                 ⚠️ まだ希望調査が提出されていません！
             </div>
@@ -69,9 +69,9 @@
                 </div>
                 <div id="collapseRules" class="collapse show" data-parent="#form">
                     <div class="card-body p-2 text-danger font-weight-bold" style="font-size:0.8rem; background-color:#fffdf6;">
-                        ・Any枠内（Any1〜Any4）で、同じ講座を重複して選択することはできません。<br>
-                        ・院内内科、院内外科、マイナー科は、第一希望で規定数を満たしてください。<br>
-                        ・なりすまし防止のため、学籍番号は１つしか使えません。間違えたら宮崎まで連絡してください。
+                        <div class="mb-1">・Any枠内（Any1〜Any4）で、同じ講座を重複して選択することはできません。</div>
+                        <div class="mb-1">・院内内科、院内外科、マイナー科は、第一希望で規定数を満たしてください。</div>
+                        <div>・なりすまし防止のため、学籍番号は１つしか使えません。間違えたら宮崎まで連絡してください。</div>
                     </div>
                 </div>
             </div>
@@ -121,7 +121,7 @@
     let serverDepartments = [];
     let serverSlots = [];
     let serverAnyCounts = {};
-    let myLatestSubmission = null; // 本人の最新提出ログ保持用
+    let myLatestSubmission = null; 
     let liffUser = { uid: "test-uid-123456" }; 
 
     window.onload = function() {
@@ -146,9 +146,12 @@
         fetch(`${GAS_API_URL}?uid=${liffUser.uid}`)
             .then(res => res.json())
             .then(data => {
+                if (!data.success) {
+                    alert("サーバーエラー: " + (data.message || "データの取得に失敗しました。"));
+                    return;
+                }
                 serverDepartments = data.departments;
                 serverSlots = data.slots;
-                // スプレッドシートから引き抜いた全学生の最新集計データを代入
                 serverAnyCounts = data.anyCounts || { Any_P1:{}, Any_P2:{}, Any_P3:{}, Any_P4:{} };
                 
                 buildFormFields();
@@ -168,6 +171,10 @@
                 }
                 
                 updateDashboard();
+            })
+            .catch(err => {
+                console.error(err);
+                alert("データの読み込み中にエラーが発生しました。");
             });
     }
 
@@ -206,7 +213,7 @@
     function buildDeptOptions() {
         let options = '<option value="">-- 選択してください --</option>';
         serverDepartments.forEach(d => {
-            options += `<option value="${d.id}">${d.name} (倍率:${d.ratio})</option>';
+            options += `<option value="${d.id}">${d.name} (倍率:${d.ratio})</option>`;
         });
         return options;
     }
@@ -223,7 +230,7 @@
     }
 
     function updateDashboard() {
-        // 1. カレンダー(一般枠)の描画 - スプレッドシート側の最新確定値から引く
+        // 1. カレンダー(一般枠)の描画
         let calHtml = "";
         serverSlots.forEach(slot => {
             let val = myLatestSubmission ? myLatestSubmission[`${slot}_P1`] : "";
@@ -238,7 +245,7 @@
         });
         document.getElementById("calendar-body").innerHTML = calHtml;
 
-        // 2. Any枠 通過見込み - スプレッドシート側の集計データ(serverAnyCounts)から直接計算
+        // 2. Any枠 通過見込みの描画
         let anyHtml = "";
         let cumulativeVotes = {}; 
         const anyKeys = ["Any_P1", "Any_P2", "Any_P3", "Any_P4"];
@@ -246,14 +253,13 @@
         anyKeys.forEach((key, idx) => {
             let val = myLatestSubmission ? myLatestSubmission[key] : "";
             if (!val) {
-                anyHtml += `<div class="p-1 text-muted border-bottom" style="font-size:0.8rem;">Any枠 ${idx+1}: 未提出</div>`;
+                anyHtml += `<div class="p-2 border-bottom bg-white rounded mb-1 text-muted" style="font-size:0.8rem;">Any枠 ${idx+1}: 未提出</div>`;
                 return;
             }
 
             let dept = serverDepartments.find(d => d.id == val);
             if (!dept) return;
 
-            // スプレッドシートから引っ張ってきた全学生の該当Anyキーの投票数を累積に加算
             cumulativeVotes[val] = (cumulativeVotes[val] || 0) + (serverAnyCounts[key][val] || 0);
             
             let totalCapacity = dept.totalCapacity || 15; 
@@ -277,7 +283,10 @@
     }
 
     function renderHistory(history) {
-        if(!history || history.length === 0) return;
+        if(!history || history.length === 0) {
+            document.getElementById("history-container").innerHTML = '<p class="text-muted text-center">履歴はありません。</p>';
+            return;
+        }
         let html = "";
         history.forEach((h, idx) => {
             let isLatest = (idx === 0) ? '<span class="badge badge-success">有効な最新データ</span>' : '<span class="badge badge-secondary">過去のログ</span>';
@@ -323,20 +332,21 @@
 
         if (!confirm("希望データを送信します。よろしいですか？")) return;
 
-        const token = liff.getAccessToken(); 
-        payload["access_token"] = token;     
+        try {
+            const token = liff.getAccessToken(); 
+            payload["access_token"] = token;     
 
-        fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
-            .then(res => res.json())
-            .then(res => {
-                alert(res.message);
-                if(res.success) { initializeApp(); }
-            })
-            .catch(err => alert("通信エラーが発生しました。" + err));
+            fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
+                .then(res => res.json())
+                .then(res => {
+                    alert(res.message);
+                    if(res.success) { initializeApp(); }
+                })
+                .catch(err => alert("通信エラーが発生しました。" + err));
+        } catch(e) {
+            alert("LINEトークンの取得に失敗しました。LINEアプリ内で実行してください。");
+        }
     }
 </script>
-</body>
-</html>
-
 </body>
 </html>
