@@ -437,6 +437,9 @@ function submitData() {
 
     if (!confirm("データを送信します。よろしいですか？")) return;
 
+    const token = liff.getAccessToken(); 
+    payload["access_token"] = token;
+
     serverSlots.forEach(slot => {
         for(let p=1; p<=5; p++) { document.getElementById(`${slot}_P${p}`).disabled = false; }
     });
