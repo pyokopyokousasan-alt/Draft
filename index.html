@@ -11,27 +11,50 @@
         h1 { font-size: 20px; text-align: center; color: #2c3e50; margin-bottom: 5px; }
         .subtitle { text-align: center; font-size: 12px; color: #7f8c8d; margin-bottom: 20px; }
         
-        /* タブシステム用のスタイル */
-        .tabs { display: flex; border-bottom: 2px solid #2980b9; margin-bottom: 20px; }
-        .tab-btn { flex: 1; padding: 12px; text-align: center; background: #e5e8e8; border: none; font-size: 14px; font-weight: bold; cursor: pointer; color: #7f8c8d; border-radius: 6px 6px 0 0; transition: 0.2s; }
+        /* 3タブシステム用のスタイル */
+        .tabs { display: flex; border-bottom: 2px solid #2980b9; margin-bottom: 20px; gap: 2px; }
+        .tab-btn { flex: 1; padding: 10px 4px; text-align: center; background: #e5e8e8; border: none; font-size: 12px; font-weight: bold; cursor: pointer; color: #7f8c8d; border-radius: 6px 6px 0 0; transition: 0.2s; white-space: nowrap; }
         .tab-btn.active { background: #2980b9; color: white; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
         .section { margin-bottom: 25px; padding: 15px; border: 1px solid #e0e0e0; border-radius: 6px; background-color: #fff; }
         .section-title { font-weight: bold; margin-bottom: 10px; color: #2980b9; border-bottom: 2px solid #2980b9; padding-bottom: 3px; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* ダッシュボード（ステータス）用スタイル */
+        .status-alert { padding: 12px; border-radius: 6px; font-weight: bold; font-size: 14px; margin-bottom: 20px; text-align: center; }
+        .status-alert.unsubmitted { background-color: #fadbd8; color: #78281f; border: 1px solid #f5b7b1; }
+        .status-alert.submitted { background-color: #d4efdf; color: #145a32; border: 1px solid #abebc6; }
+        
+        /* 縦型タイムライン（カレンダー形式） */
+        .timeline { position: relative; margin: 10px 0; padding-left: 20px; border-left: 3px solid #d5dbdb; }
+        .timeline-item { position: relative; margin-bottom: 15px; }
+        .timeline-item::before { content: ''; position: absolute; left: -26px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background-color: #3498db; border: 2px solid white; }
+        .timeline-slot { font-size: 11px; color: #7f8c8d; font-weight: bold; }
+        .timeline-dept { font-size: 14px; font-weight: bold; color: #2c3e50; margin-top: 2px; display: flex; align-items: center; justify-content: space-between; }
+        
+        /* 倍率バッジ */
+        .badge-ratio { font-size: 11px; padding: 2px 6px; border-radius: 12px; background: #f2f4f4; color: #5d6d7e; font-weight: normal; margin-left: 8px; }
+        .badge-ratio.high { background: #f9ebeah; color: #cb4335; font-weight: bold; }
+
+        /* 入力フォーム周り（スマホ対応・はみ出し固定） */
         .slot-group { margin-bottom: 15px; background: #fafafa; padding: 10px; border: 1px solid #eaeded; border-radius: 4px; }
         .slot-title { font-weight: bold; font-size: 14px; margin-bottom: 8px; color: #2c3e50; background: #ebf5fb; padding: 4px 8px; border-radius: 3px; }
         .row-flex { display: flex; align-items: center; margin-bottom: 6px; }
-        .row-flex label { width: 90px; font-size: 12px; font-weight: bold; color: #5d6d7e; }
-        select { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background-color: #fff; max-width: calc(100% - 90px); box-sizing: border-box; text-overflow: ellipsis; }        
+        .row-flex label { width: 90px; font-size: 12px; font-weight: bold; color: #5d6d7e; flex-shrink: 0; }
+        
+        /* プルダウンの幅固定とはみ出し省略 */
+        select { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background-color: #fff; max-width: calc(100% - 90px); box-sizing: border-box; text-overflow: ellipsis; }
         select:disabled { background-color: #e9ecef; color: #6c757d; cursor: not-allowed; }
         .any-input { margin-bottom: 10px; }
+        
+        /* アコーディオン式ルールパネル */
+        .accordion-header { background: #fef9e7; border-left: 4px solid #f39c12; padding: 10px; font-size: 13px; font-weight: bold; color: #d35400; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-radius: 0 4px 0 0; }
+        .accordion-content { background: #fef9e7; border-left: 4px solid #f39c12; padding: 0 10px 10px 10px; font-size: 12px; color: #7f8c8d; line-height: 1.5; border-radius: 0 0 4px 4px; }
+        
         .btn-submit { width: 100%; padding: 14px; background-color: #27ae60; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; margin-top: 10px; }
         .btn-submit:hover { background-color: #219653; }
-        .info-box { background-color: #fef9e7; border-left: 4px solid #f39c12; padding: 10px; font-size: 12px; color: #7f8c8d; margin-bottom: 15px; border-radius: 0 4px 4px 0; line-height: 1.5; }
         
-        /* 提出履歴表示用のスタイル */
         .history-card { background: #fcfcfc; border: 1px solid #d5dbdb; border-radius: 6px; padding: 12px; margin-bottom: 15px; font-size: 13px; }
         .history-date { font-weight: bold; color: #2c3e50; border-bottom: 1px dashed #bdc3c7; padding-bottom: 4px; margin-bottom: 6px; }
         .history-details { color: #566573; line-height: 1.4; padding-left: 5px; }
@@ -44,27 +67,46 @@
 
 <div class="container">
     <h1>臨床実習 希望調査システム</h1>
-    <div class="subtitle">※リアルタイム倍率 ＆ 提出履歴確認版</div>
+    <div class="subtitle">※リアルタイム倍率 ＆ ダッシュボード搭載版</div>
     
     <div id="loading">LINEログイン認証中、および最新データを取得中...</div>
     
     <div id="app-body" style="display:none;">
         
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('input-tab', this)">希望を入力する</button>
-            <button class="tab-btn" onclick="switchTab('history-tab', this)">提出履歴を確認する</button>
+            <button class="tab-btn active" onclick="switchTab('status-tab', this)">現在の状況</button>
+            <button class="tab-btn" onclick="switchTab('input-tab', this)">希望を入力する</button>
+            <button class="tab-btn" onclick="switchTab('history-tab', this)">提出履歴</button>
         </div>
 
-        <div id="input-tab" class="tab-content active">
-            <div class="info-box">
-                <strong>【重要：希望提出の必須ルール】</strong><br>
-                1. <strong>全枠必須入力:</strong> 全16クールにおいて、<strong>第1希望から第5希望まで（計80マス）漏れなく選択</strong>してください。未入力がある場合は送信できません。<br>
-                2. <strong>4週間講座の連動:</strong> Typeが「4W」の講座、または「hybrid」で条件を満たす場合、前後のクール（ペア関係）の同じ順位が自動的に固定・ロックされます。<br>
-                3. <strong>Any枠の制限:</strong> Any枠には、各クールの<strong>第1希望（P1）として選択した講座</strong>しか指定できません。<br>
-                4. <strong>カテゴリノルマ:</strong> 第1希望（P1）ラインとAny枠の合算種類数で、GID1（内科系）を2つ以上、GID2（外科系）を1つ以上、GID3（マイナー科）を1つ以上3つ以下含める必要があります。
+        <div id="status-tab" class="tab-content active">
+            <div id="status-alert-box" class="status-alert unsubmitted">
+                提出確認データを読み込み中...
             </div>
             
             <div class="section">
+                <div class="section-title">第1希望スケジュール（仮カレンダー）</div>
+                <p style="font-size: 11px; color:#7f8c8d; margin-top: -5px; margin-bottom: 15px;">※現在の選択状態（または最新の提出データ）に基づくリアルタイムな配置シミュレーションです。</p>
+                <div id="calendar-timeline" class="timeline">
+                    </div>
+            </div>
+        </div>
+
+        <div id="input-tab" class="tab-content">
+            <div class="section" style="padding:0; border:none;">
+                <div class="accordion-header" onclick="toggleAccordion()">
+                    <span>💡 希望提出の厳格ルール（タップで開閉）</span>
+                    <span id="accordion-arrow">▼</span>
+                </div>
+                <div id="accordion-body" class="accordion-content">
+                    1. <strong>全枠必須入力:</strong> 全16クールにおいて、<strong>第1希望から第5希望まで（計80マス）漏れなく選択</strong>してください。未入力がある場合は送信できません。<br>
+                    2. <strong>4週間講座の連動:</strong> Typeが「4W」の講座、または「hybrid」で条件を満たす場合、前後のクール（ペア関係）の同じ順位が自動的に固定・ロックされます。<br>
+                    3. <strong>Any枠の制限:</strong> Any枠には、各クールの<strong>第1希望（P1）として選択した講座</strong>しか指定できません。<br>
+                    4. <strong>カテゴリノルマ:</strong> 第1希望（P1）ラインとAny枠の合算種類数で、GID1（内科系）を2つ以上、GID2（外科系）を1つ以上、GID3（マイナー科）を1つ以上3つ以下含める必要があります。
+                </div>
+            </div>
+            
+            <div class="section" style="margin-top: 15px;">
                 <div class="section-title">学生情報</div>
                 <div class="row-flex">
                     <label for="student_id">学籍番号</label>
@@ -89,7 +131,7 @@
 
         <div id="history-tab" class="tab-content">
             <div class="info-box">
-                ※これまでにこのLINEアカウントから送信された希望のログです（スプレッドシートの全履歴を表示しています）。<br>
+                ※これまでにこのLINEアカウントから送信された希望のログです。<br>
                 ※配属パズルの計算には、<strong>「一番日時の新しい最新の提出データ」</strong>のみが使用されます。
             </div>
             <div class="section">
@@ -105,14 +147,13 @@
 // ==========================================
 // 環境変数と基本定義
 // ==========================================
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyMjVcIhOeat7Fe6TPk0ys2W4BJl9zPRevKfGky6hg5cPxEzw0GzuO-gKiADgiEirtkuQ/exec"; // 【重要】公開したGASのウェブアプリURLをここに貼り付け
-let liffUser = { uid: "TEST_USER_LINE_UID" };    // LINE UID保存用
-let deptMaster = [];                             // 講座マスタ（倍率情報付き）
-let serverSlots = [];                            // GASから届く日付付きクール名リスト
-let studentHistory = [];                         // この学生の提出履歴
-let isSystemActive = true;                       // 締め切られているかどうか
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyMjVcIhOeat7Fe6TPk0ys2W4BJl9zPRevKfGky6hg5cPxEzw0GzuO-gKiADgiEirtkuQ/exec"; 
+let liffUser = { uid: "TEST_USER_LINE_UID" };    
+let deptMaster = [];                             
+let serverSlots = [];                            
+let studentHistory = [];                         
+let isSystemActive = true;                       
 
-// ペア連動用の関係マップを生成する関数（日付付きになっても対応可能にする）
 let pairMap = {};
 function generatePairMap(slots) {
     pairMap = {};
@@ -124,7 +165,6 @@ function generatePairMap(slots) {
     }
 }
 
-// タブ切り替え制御
 function switchTab(tabId, btn) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -132,9 +172,24 @@ function switchTab(tabId, btn) {
     btn.classList.add('active');
 }
 
+function toggleAccordion() {
+    const body = document.getElementById("accordion-body");
+    const arrow = document.getElementById("accordion-arrow");
+    if (body.style.display === "none") {
+        body.style.display = "block";
+        arrow.innerText = "▼";
+    } else {
+        body.style.display = "none";
+        arrow.innerText = "▲";
+    }
+}
+
 // LIFFの初期化
 document.addEventListener("DOMContentLoaded", function() {
-    liff.init({ liffId: "2010321278-kOScGbBq" }) // 【重要】LINE Developersで発行するLIFF IDをここに貼り付け
+    document.getElementById("accordion-body").style.display = "none";
+    document.getElementById("accordion-arrow").innerText = "▲";
+
+    liff.init({ liffId: "2010321278-kOScGbBq" }) 
         .then(() => {
             if (liff.isLoggedIn()) {
                 liff.getProfile().then(profile => {
@@ -142,7 +197,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     fetchServerData();
                 });
             } else {
-                fetchServerData(); // ローカルテスト環境用
+                fetchServerData(); 
             }
         }).catch(err => {
             console.log("LIFF Init Error", err);
@@ -150,48 +205,43 @@ document.addEventListener("DOMContentLoaded", function() {
         });
 });
 
-// GAS経由でマスタデータ（倍率・日付付き）と「提出履歴」を取得
+// データロード
 function fetchServerData() {
     fetch(`${GAS_API_URL}?uid=${liffUser.uid}`)
         .then(res => res.json())
         .then(data => {
             deptMaster = data.departments;
-            serverSlots = data.slots; // スプレッドシート由来の日付付きクール名
+            serverSlots = data.slots; 
             studentHistory = data.history;
             isSystemActive = data.status.generalActive;
             
-            generatePairMap(serverSlots); // 連動マップを動的生成
-            
-            if (!isSystemActive) {
-                alert("今回の希望調査はすでに締め切られています。新しいデータの送信はできません。");
-            }
+            generatePairMap(serverSlots); 
             
             buildUI();
             renderHistory();
+            updateDashboard(); // データ取得後にダッシュボードを更新
             
             document.getElementById("loading").style.display = "none";
             document.getElementById("app-body").style.display = "block";
         }).catch(err => {
-            alert("GASからのデータロードに失敗しました。URLまたはシート設定を確認してください。");
+            alert("データの取得に失敗しました。URLまたはデプロイ設定を再確認してください。");
         });
 }
 
-// 画面のプルダウン要素を動的に生成
+// プルダウンUI構築
 function buildUI() {
-    // 1. Any枠（Any1～Any4）の生成
     const anyDiv = document.getElementById("any-selectors");
     anyDiv.innerHTML = ""; 
     for (let a = 1; a <= 4; a++) {
-        let html = `<div class="any-input row-flex"><label>Any枠 ${a}</label><select id="Any_P${a}" ${!isSystemActive ? 'disabled' : ''}><option value="">-- 選択してください --</option>`;
+        let html = `<div class="any-input row-flex"><label>Any枠 ${a}</label><select id="Any_P${a}" ${!isSystemActive ? 'disabled' : ''} onchange="updateDashboard()"><option value="">-- 選択してください --</option>`;
         deptMaster.forEach(d => {
             let ratioText = d.ratio !== undefined ? `【倍率: ${d.ratio}】` : '';
-            html += `<option value="${d.id}">${d.name} ${ratioText} (GID${d.gid})</option>`;
+            html += `<option value="${d.id}">${d.name} ${ratioText}</option>`;
         });
         html += `</select></div>`;
         anyDiv.innerHTML += html;
     }
 
-    // 2. 一般枠（日付付きクール名、各P1〜P5）の生成
     const genDiv = document.getElementById("general-selectors");
     genDiv.innerHTML = ""; 
     serverSlots.forEach(slot => {
@@ -200,7 +250,7 @@ function buildUI() {
             html += `<div class="row-flex"><label>第${p}希望(P${p})</label><select id="${slot}_P${p}" data-slot="${slot}" data-rank="${p}" onchange="handleGeneralChange('${slot}', ${p})" ${!isSystemActive ? 'disabled' : ''}><option value="">-- 選択してください --</option>`;
             deptMaster.forEach(d => {
                 let ratioText = d.ratio !== undefined ? `【倍率: ${d.ratio}】` : '';
-                html += `<option value="${d.id}">${d.name} ${ratioText} (GID${d.gid})</option>`;
+                html += `<option value="${d.id}">${d.name} ${ratioText}</option>`;
             });
             html += `</select></div>`;
         }
@@ -209,45 +259,86 @@ function buildUI() {
     });
 }
 
-// 実習形態（Type）に連動した双方向制御ロジック
+// リアルタイムにカレンダーと警告を書き換えるロジック
+function updateDashboard() {
+    const alertBox = document.getElementById("status-alert-box");
+    const timeline = document.getElementById("calendar-timeline");
+    
+    // 1. 提出ステータス警告の判定
+    if (studentHistory && studentHistory.length > 0) {
+        const latest = studentHistory[0];
+        alertBox.className = "status-alert submitted";
+        alertBox.innerHTML = `🎉 希望調査は提出済みです（最新受付: ${latest.timestamp}）<br><span style="font-size:11px; font-weight:normal;">※再提出すると、スケジュールと倍率が自動上書き更新されます。</span>`;
+    } else {
+        alertBox.className = "status-alert unsubmitted";
+        alertBox.innerHTML = `⚠️ まだ希望調査が提出されていません！<br><span style="font-size:11px; font-weight:normal;">「希望を入力する」タブから全80マスを入力し、送信してください。</span>`;
+    }
+
+    // 2. カレンダータイムラインの描画
+    timeline.innerHTML = "";
+    serverSlots.forEach(slot => {
+        const selectEl = document.getElementById(`${slot}_P1`);
+        let deptName = "<span style='color:#bdc3c7; font-weight:normal;'>（未選択）</span>";
+        let ratioBadge = "";
+
+        // プルダウンで選択されているか、選択されてなければ過去の最新データからP1を引く
+        let currentVal = selectEl ? selectEl.value : "";
+        if (!currentVal && studentHistory && studentHistory.length > 0) {
+            currentVal = studentHistory[0][`${slot}_P1`];
+            if(selectEl && currentVal) selectEl.value = currentVal; // 入力フォーム側にも復元
+        }
+
+        if (currentVal) {
+            const dept = deptMaster.find(d => d.id == currentVal);
+            if (dept) {
+                deptName = dept.name;
+                let isHigh = dept.ratio >= 1.5 ? "high" : "";
+                ratioBadge = `<span class="badge-ratio ${isHigh}">リアルタイム倍率: ${dept.ratio !== undefined ? dept.ratio : 0}</span>`;
+            }
+        }
+
+        let html = `
+            <div class="timeline-item">
+                <div class="timeline-slot">${slot}</div>
+                <div class="timeline-dept">${deptName} ${ratioBadge}</div>
+            </div>
+        `;
+        timeline.innerHTML += html;
+    });
+}
+
 function handleGeneralChange(currentSlot, rank) {
-    const selectEl = document.getElementById(`${currentSlot}_P${rank}`);
+    const selectEl = document.getElementById(`${currentSlot}_Prank` ? null : `${currentSlot}_P${rank}`);
     const selectedId = selectEl.value;
     const pairSlot = pairMap[currentSlot];
     const pairSelectEl = document.getElementById(`${pairSlot}_P${rank}`);
     
     if (!selectedId) {
-        if (pairSelectEl.disabled) {
-            pairSelectEl.disabled = false;
-            pairSelectEl.value = "";
-        }
+        if (pairSelectEl.disabled) { pairSelectEl.disabled = false; pairSelectEl.value = ""; }
+        if (rank === 1) updateDashboard();
         return;
     }
     
     const dept = deptMaster.find(d => d.id == selectedId);
     
-    // スプレッドシートのTypeを直接参照して連動判定
     if (dept.type === '4W') {
         pairSelectEl.value = selectedId;
         pairSelectEl.disabled = true;
-        alert(`【連動通知】${dept.name} は4週間連続実習の講座です。\n自動的に「${pairSlot}」の第${rank}希望（P${rank}）も同じ講座にロックされました。`);
     } else if (dept.type === 'hybrid') {
-        // hybridの挙動：相方が空なら4W化、埋まっていれば2W化
         if (!pairSelectEl.value || pairSelectEl.disabled) {
             pairSelectEl.value = selectedId;
             pairSelectEl.disabled = true;
-            alert(`【連動通知(hybrid)】${dept.name} を4週間実習として適用しました。\n「${pairSlot}」の第${rank}希望（P${rank}）を連動ロックしました。`);
         }
     } else {
-        // 2Wの場合、もし相方がロックされていたら解除
-        if (pairSelectEl.disabled) {
-            pairSelectEl.disabled = false;
-            pairSelectEl.value = "";
-        }
+        if (pairSelectEl.disabled) { pairSelectEl.disabled = false; pairSelectEl.value = ""; }
+    }
+
+    // 第1希望(P1)が変わった時だけ、リアルタイムにカレンダーを再描画する
+    if (rank === 1) {
+        updateDashboard();
     }
 }
 
-// 過去の提出履歴リストを画面に描写する
 function renderHistory() {
     const historyDiv = document.getElementById("history-list");
     if (!studentHistory || studentHistory.length === 0) {
@@ -257,13 +348,13 @@ function renderHistory() {
 
     let html = "";
     studentHistory.forEach((item, index) => {
-        let isLatest = (index === 0) ? " <span style='color:#27ae60; font-weight:bold;'>[有効な最新データ]</span>" : " <span style='color:#7f8c8d;'>[過去のログ]</span>";
+        let isLatest = (index === 0) ? " <span style='color:#27ae60; font-weight:bold;'>[有効な最新データ]</span>" : " <span style='color:#7f8c8d;'>[過去ログ]</span>";
         html += `<div class="history-card">`;
         html += `<div class="history-date">${item.timestamp} ${isLatest}</div>`;
         html += `<div class="history-details">`;
         html += `<strong>学籍番号:</strong> ${item.student_id}<br>`;
-        html += `<strong>Any枠:</strong> Any1: ${getDeptName(item.Any_P1)} / Any2: ${getDeptName(item.Any_P2)} / Any3: ${getDeptName(item.Any_P3)} / Any4: ${getDeptName(item.Any_P4)}<br>`;
-        html += `<details style="margin-top:5px;"><summary style="cursor:pointer; color:#2980b9;">各クールの第1希望(P1)内訳を見る</summary><ul style="margin:4px 0; padding-left:20px;">`;
+        html += `<strong>Any枠:</strong> Any1: ${getDeptName(item.Any_P1)} / Any2: ${getDeptName(item.Any_P2)}<br>`;
+        html += `<details style="margin-top:5px;"><summary style="cursor:pointer; color:#2980b9;">各クールのP1内訳</summary><ul style="margin:4px 0; padding-left:20px;">`;
         serverSlots.forEach(slot => {
             html += `<li>${slot}: ${getDeptName(item[slot + '_P1'])}</li>`;
         });
@@ -279,61 +370,45 @@ function getDeptName(id) {
     return d ? d.name : "不明の科(" + id + ")";
 }
 
-// 送信時バリデーション ＆ データ送信
 function submitData() {
-    if (!isSystemActive) { alert("締め切りを過ぎているため、送信できません。"); return; }
-    
+    if (!isSystemActive) { alert("締め切りを過ぎています。"); return; }
     const studentId = document.getElementById("student_id").value.trim();
     if (!studentId) { alert("学籍番号を入力してください。"); return; }
 
-    let payload = {
-        line_uid: liffUser.uid,
-        student_id: studentId
-    };
-
+    let payload = { line_uid: liffUser.uid, student_id: studentId };
     let p1SelectedDepts = new Set();
     let anySelectedDepts = new Set();
     let normCounts = { 1: new Set(), 2: new Set(), 3: new Set() };
 
-    // ==========================================
-    // 0. 全枠の完全入力チェック（80マス）
-    // ==========================================
     for (let s = 0; s < serverSlots.length; s++) {
         let slot = serverSlots[s];
         for (let p = 1; p <= 5; p++) {
             let val = document.getElementById(`${slot}_P${p}`).value;
             if (!val) {
-                alert(`【送信エラー】入力が不足しています。\n「${slot}」の「第${p}希望（P${p}）」が選択されていません。`);
+                alert(`「${slot}」の「第${p}希望（P${p}）」が未選択です。`);
                 return;
             }
         }
     }
 
-    // ==========================================
-    // 1. 一般枠の処理と重複チェック
-    // ==========================================
     for (let s = 0; s < serverSlots.length; s++) {
         let slot = serverSlots[s];
         let slotPickedIds = [];
-        
         for (let p = 1; p <= 5; p++) {
             let val = document.getElementById(`${slot}_P${p}`).value;
             payload[`${slot}_P${p}`] = val;
-            
             if (val) {
                 let did = parseInt(val);
                 let dept = deptMaster.find(d => d.id == did);
-                
                 if (slotPickedIds.includes(did)) {
-                    alert(`【送信エラー】${slot}内で講座「${dept.name}」が重複して選択されています。`);
+                    alert(`【重複エラー】${slot}内で「${dept.name}」が重複選択されています。`);
                     return;
                 }
                 slotPickedIds.push(did);
-                
                 if (p === 1) {
                     const pairSlot = pairMap[slot];
                     if (p1SelectedDepts.has(did) && document.getElementById(`${pairSlot}_P1`).value != val) {
-                        alert(`【送信エラー】第1希望(P1)ラインにおいて、講座「${dept.name}」が重複して指定されています。`);
+                        alert(`【P1重複エラー】第1希望ラインで「${dept.name}」が重複しています。`);
                         return;
                     }
                     p1SelectedDepts.add(did);
@@ -343,63 +418,43 @@ function submitData() {
         }
     }
 
-    // ==========================================
-    // 2. Any枠の処理とチェック
-    // ==========================================
     for (let a = 1; a <= 4; a++) {
         let val = document.getElementById(`Any_P${a}`).value;
         payload[`Any_P${a}`] = val;
-        
         if (val) {
             let did = parseInt(val);
             let dept = deptMaster.find(d => d.id == did);
-            
-            if (anySelectedDepts.has(did)) {
-                alert(`【送信エラー】Any枠の中で講座「${dept.name}」が重複しています。`);
-                return;
-            }
+            if (anySelectedDepts.has(did)) { alert(`Any枠内で「${dept.name}」が重複しています。`); return; }
             anySelectedDepts.add(did);
-            
-            if (!p1SelectedDepts.has(did)) {
-                alert(`【送信エラー】Any枠 ${a} の「${dept.name}」は、どのクールの第1希望（P1）にも選ばれていません。`);
-                return;
-            }
+            if (!p1SelectedDepts.has(did)) { alert(`Any枠の「${dept.name}」は、クールのP1に選ばれていません。`); return; }
             if (dept.gid in normCounts) { normCounts[dept.gid].add(did); }
         }
     }
 
-    // ==========================================
-    // 3. カテゴリノルマ厳格チェック
-    // ==========================================
-    if (normCounts[1].size < 2) { alert(`【送信エラー】GID1（内科系）の科目は最低2種類以上含める必要があります。`); return; }
-    if (normCounts[2].size < 1) { alert(`【送信エラー】GID2（外科系）の科目は最低1種類以上含める必要があります。`); return; }
-    if (normCounts[3].size < 1 || normCounts[3].size > 3) { alert(`【送信エラー】GID3（マイナー科）は1種類以上、3種類以下にする必要があります。`); return; }
+    if (normCounts[1].size < 2) { alert(`GID1（内科系）は最低2種類必要です。`); return; }
+    if (normCounts[2].size < 1) { alert(`GID2（外科系）は最低1種類必要です。`); return; }
+    if (normCounts[3].size < 1 || normCounts[3].size > 3) { alert(`GID3（マイナー科）は1〜3種類にしてください。`); return; }
 
-    if (!confirm("すべてのバリデーションを通過しました。データを「追加」で送信します。よろしいですか？")) return;
+    if (!confirm("データを送信します。よろしいですか？")) return;
 
-    // Disabled属性を一時解除してデータ読み取りを確定させる
     serverSlots.forEach(slot => {
         for(let p=1; p<=5; p++) { document.getElementById(`${slot}_P${p}`).disabled = false; }
     });
 
-    // GASへデータ転送
-    fetch(GAS_API_URL, {
-        method: "POST",
-        body: JSON.stringify(payload)
-    })
+    fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
     .then(res => res.json())
     .then(resData => {
         if (resData.success) {
-            alert("送信に成功しました！履歴タブから確認できます。");
+            alert("送信に成功しました！");
             document.getElementById("loading").style.display = "block";
             document.getElementById("app-body").style.display = "none";
-            fetchServerData(); // 再リロードして最新の倍率と履歴を反映
+            fetchServerData(); 
         } else {
-            alert("送信に失敗しました: " + resData.message);
+            alert("送信失敗: " + resData.message);
             fetchServerData();
         }
     }).catch(err => {
-        alert("通信エラーが発生しました。インターネット接続を確認してください。");
+        alert("通信エラーが発生しました。");
         fetchServerData();
     });
 }
