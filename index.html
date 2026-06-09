@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
     <meta name="robots" content="noindex, nofollow">
     <meta property="og:title" content="ページにアクセスしてください">
     <meta property="og:description" content="臨床実習 希望調査システム">
-
     <title>臨床実習 希望調査システム</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
@@ -28,6 +26,9 @@
     <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">
         臨床実習 希望調査システム <span class="badge badge-info">ver1.8</span>
     </div>
+    <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">
+        ログイン中：学籍番号 <span id="current-sid"></span> さん
+    </div>
     <ul class="nav nav-tabs nav-fill" id="mainTab" role="tablist">
         <li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash" role="tab">現在の状況</a></li>
         <li class="nav-item"><a class="nav-link" id="form-tab" data-toggle="tab" href="#form" role="tab">希望を入力する</a></li>
@@ -37,12 +38,10 @@
 
 <div class="container-fluid p-3">
     <div class="tab-content" id="mainTabContent">
-        
         <div class="tab-pane fade show active" id="dash" role="tablist">
             <div id="status-alert" class="alert alert-danger text-center font-weight-bold">
                 ⚠️ まだ希望調査が提出されていません！
             </div>
-            
             <div class="card shadow-sm mb-3">
                 <div class="card-header bg-primary text-white font-weight-bold p-2" style="font-size:0.9rem;">
                     🌟 あなたのAny枠 通過見込み (リアルタイム累積)
@@ -51,7 +50,6 @@
                     <p class="text-muted text-center m-0">選択データを読み込み中...</p>
                 </div>
             </div>
-
             <div class="card shadow-sm">
                 <div class="card-header bg-secondary text-white font-weight-bold p-2" style="font-size:0.9rem;">
                     🗓️ 第1希望スケジュール（仮カレンダー）
@@ -81,6 +79,7 @@
                         <label class="col-4 col-form-label px-1 font-weight-bold">学籍番号:</label>
                         <div class="col-8 px-1">
                             <input type="text" class="form-control form-control-sm" id="student_id" placeholder="半角数字6桁" required maxlength="6">
+                            <small id="id-lock-msg" class="text-danger font-weight-bold" style="display:none;">※学籍番号は変更できません</small>
                         </div>
                     </div>
                 </div>
@@ -107,7 +106,6 @@
                 <p class="text-muted text-center">履歴はありません。</p>
             </div>
         </div>
-
     </div>
 </div>
 
@@ -152,10 +150,21 @@
                 
                 if(data.history && data.history.length > 0) {
                     const latest = data.history[0];
-                    document.getElementById("student_id").value = latest.student_id;
+                    const sidInput = document.getElementById("student_id");
+                    
+                    // 学籍番号を自動入力・固定
+                    sidInput.value = latest.student_id;
+                    sidInput.disabled = true;
+                    sidInput.classList.add("bg-secondary", "text-white");
+                    document.getElementById("id-lock-msg").style.display = "block";
+
+                    // ログイン情報表示
+                    document.getElementById("login-info").style.display = "block";
+                    document.getElementById("current-sid").innerText = latest.student_id;
+                    
                     applyFormValues(latest);
                     document.getElementById("status-alert").className = "alert alert-success text-center font-weight-bold";
-                    document.getElementById("status-alert").innerHTML = "🎉 希望調査は提出済みです（修正再提出も可能）";
+                    document.getElementById("status-alert").innerHTML = "🎉 希望調査は提出済みです（再提出可能）";
                 }
                 
                 updateDashboard();
@@ -245,7 +254,6 @@
             if (!dept) return;
 
             cumulativeVotes[val] = (cumulativeVotes[val] || 0) + (serverAnyCounts[key][val] || 0);
-            
             let totalCapacity = dept.totalCapacity || 15; 
             let ratio = Math.round((cumulativeVotes[val] / totalCapacity) * 10) / 10;
 
@@ -286,13 +294,14 @@
     }
 
     function submitData() {
-        const studentId = document.getElementById("student_id").value.trim();
+        const sidInput = document.getElementById("student_id");
+        const studentId = sidInput.value.trim();
+        
         if(!/^\d{6}$/.test(studentId)) {
             alert("エラー：学籍番号は必ず「半角数字6桁」で入力してください。");
             return;
         }
 
-        // Any枠内の重複チェック
         let anyValues = [];
         for(let p=1; p<=4; p++) {
             let val = document.getElementById(`Any_P${p}`).value;
@@ -314,8 +323,7 @@
 
         if (!confirm("希望データを送信します。よろしいですか？")) return;
 
-        const token = liff.getAccessToken(); 
-        payload["access_token"] = token;     
+        payload["access_token"] = liff.getAccessToken();     
 
         fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
             .then(res => res.json())
