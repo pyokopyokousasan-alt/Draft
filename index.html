@@ -67,7 +67,8 @@
                 </div>
                 <div id="collapseRules" class="collapse show" data-parent="#form">
                     <div class="card-body p-2 text-danger font-weight-bold" style="font-size:0.8rem; background-color:#fffdf6;">
-                        ・Any枠内（Any1〜Any4）で、同じ講座を重複して選択することはできません。また、第一希望から選んでください。
+                        ・Any枠内（Any1〜Any4）で、同じ講座を重複して選択することはできません。また、第一希望から選んでください。<br>
+                        ・4週間枠（4W）の講座を選択した場合、対応する前半/後半クールの同じ希望順位は、自動的にその講座に固定されます。
                     </div>
                 </div>
             </div>
@@ -140,76 +141,6 @@
             });
     };
 
-    // 4W枠の選択連動およびロックを統合管理する関数
-    function handle4WLinkage(changedSlot) {
-        const currentVal = document.getElementById(`${changedSlot}p1`).value;
-        
-        let partnerSlot = "";
-        if (changedSlot.includes("前半")) {
-            partnerSlot = changedSlot.replace("前半", "後半");
-        } else if (changedSlot.includes("後半")) {
-            partnerSlot = changedSlot.replace("後半", "前半");
-        }
-        if (!partnerSlot || !document.getElementById(`${partnerSlot}p1`)) return;
-
-        const partnerEl = document.getElementById(`${partnerSlot}p1`);
-        const dept = serverDepartments.find(d => d.id == currentVal);
-
-        if (dept && dept.type === "4W") {
-            // 4W講座が選ばれた場合、相方を同じ値にしてロック
-            if (partnerEl.value !== currentVal) {
-                partnerEl.value = currentVal;
-                alert(`選択された講座は4W（4週間枠）のため、${partnerSlot}の第1希望に自動設定し、手動変更をロックしました。`);
-            }
-        } else {
-            // 2W（または空）が選ばれた時、もし相方が自分と同じ値のままロックされていたら解除
-            // (相方側が4Wである場合はロックを維持したいため、値の矛盾チェックを挟む)
-            const partnerDept = serverDepartments.find(d => d.id == partnerEl.value);
-            if (partnerDept && partnerDept.type === "4W") {
-                // 相方側が主導の4Wロックなので何もしない
-            } else {
-                // どちらも4Wでないならロックを確実に解除
-                partnerEl.disabled = false;
-            }
-        }
-
-        // ロック状態を最新の入力値ベースで再評価して適用
-        refreshLockState();
-    }
-
-    // 全スロットを走査して、4Wルールに基づくdisabled状態を正しく決定・適用する関数
-    function refreshLockState() {
-        // まず一般枠の全第一希望のdisabledを一回解除（再評価のため）
-        serverSlots.forEach(slot => {
-            let el = document.getElementById(`${slot}p1`);
-            if (el) el.disabled = false;
-        });
-
-        // 前半に4Wがあるか、後半に4Wがあるかをチェックして適切にロックを掛ける
-        serverSlots.forEach(slot => {
-            if (slot.includes("前半")) {
-                let partnerSlot = slot.replace("前半", "後半");
-                let el1 = document.getElementById(`${slot}p1`);
-                let el2 = document.getElementById(`${partnerSlot}p1`);
-
-                if (el1 && el2) {
-                    let dept1 = serverDepartments.find(d => d.id == el1.value);
-                    let dept2 = serverDepartments.find(d => d.id == el2.value);
-
-                    if (dept1 && dept1.type === "4W") {
-                        // 前半が4Wなら、後半のセレクトボックスをロック
-                        el2.value = el1.value;
-                        el2.disabled = true;
-                    } else if (dept2 && dept2.type === "4W") {
-                        // 後半が4Wなら、前半のセレクトボックスをロック
-                        el1.value = el2.value;
-                        el1.disabled = true;
-                    }
-                }
-            }
-        });
-    }
-
     function initializeApp() {
         if (!liffUser.uid) return;
 
@@ -239,45 +170,82 @@
                     document.getElementById("login-info").style.display = "block";
                     document.getElementById("current-sid").innerText = latest.student_id;
                     
-                    // 1. 過去の希望値を反映
+                    // 過去の希望値を反映
                     applyFormValues(latest);
-                    
-                    // ==========================================
-                    // ★【ここを追加】初期読み込み時の4Wロック状態を復元
-                    // ==========================================
-                    serverSlots.forEach(slot => {
-                        // 「前半」クールを対象に、現在の選択内容を元にロックをかける
-                        if (slot.includes("前半")) {
-                            // 初期化時のアラートポップアップを防ぐために、この時点だけ条件を限定するか、
-                            // あるいはそのまま handle4WLinkage を呼び出します。
-                            // ただし既存の handle4WLinkage だと「自動設定しました」のアラートが出てしまうため、
-                            // 静かにロックだけを復元するロジックをここに割り込ませます。
-                            
-                            const currentVal = document.getElementById(`${slot}p1`).value;
-                            if (currentVal) {
-                                const dept = serverDepartments.find(d => d.id == currentVal);
-                                if (dept && dept.type === "4W") {
-                                    let partnerSlot = slot.replace("前半", "後半");
-                                    const partnerEl = document.getElementById(`${partnerSlot}p1`);
-                                    if (partnerEl) {
-                                        partnerEl.disabled = true; // 強制ロック
-                                    }
-                                }
-                            }
-                        }
-                    });
-                    // ==========================================
 
                     document.getElementById("status-alert").className = "alert alert-success text-center font-weight-bold";
                     document.getElementById("status-alert").innerHTML = "🎉 希望調査は提出済みです（変更可能）";
                 }
                 
+                // 初回読み込み時の選択状況ベースで選択肢の絞り込みを適用
+                refreshAllSlotOptions();
                 updateAnyOptions(); 
                 updateDashboard();
             })
             .catch(err => {
                 alert("データの読み込みに失敗しました。再読み込みしてください。" + err);
             });
+    }
+
+    // 各セレクトボックスの選択肢（optionタグ）を、4W縛りを判定しつつ動的に構築する関数
+    function buildDeptOptionsSlot(slot, pNum) {
+        let options = '<option value="">-- 選択してください --</option>';
+        const sIdx = serverSlots.indexOf(slot);
+
+        // 相方スロット（前半⇔後半）の特定
+        let partnerSlot = "";
+        if (slot.includes("前半")) {
+            partnerSlot = slot.replace("前半", "後半");
+        } else if (slot.includes("後半")) {
+            partnerSlot = slot.replace("後半", "前半");
+        }
+
+        // 相方スロットで、該当の希望順位(pNum)に何が選ばれているかをチェック
+        let partnerEl = document.getElementById(`${partnerSlot}p${pNum}`);
+        let partnerVal = partnerEl ? partnerEl.value : "";
+        let partnerDept = serverDepartments.find(d => d.id == partnerVal);
+
+        // 【4W縛り】相方で「4W」の講座がすでに選ばれているなら、選択肢をその1つだけに強制制限
+        if (partnerDept && partnerDept.type === "4W") {
+            options += `<option value="${partnerDept.id}">${partnerDept.name} (${partnerDept.type})</option>`;
+            return options;
+        }
+
+        // 相方が4Wではない（通常講座、または未選択）なら、そのクールで開講している全講座をリストアップ
+        serverDepartments.forEach(d => {
+            if (d.name.includes("Capaci") || d.name.includes("Type") || d.id.toString().includes("CID")) {
+                return; 
+            }
+            
+            const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
+            if (capacity > 0) {
+                let typeStr = d.type ? ` (${d.type})` : '';
+                options += `<option value="${d.id}">${d.name}${typeStr}</option>`;
+            }
+        });
+        return options;
+    }
+
+    // 全スロットの全希望（p1〜p8）の選択肢を、最新の選択状態をもとに再構築・更新する関数
+    function refreshAllSlotOptions() {
+        serverSlots.forEach(slot => {
+            for (let p = 1; p <= 8; p++) {
+                let el = document.getElementById(`${slot}p${p}`);
+                if (!el) continue;
+
+                // 現在選ばれている値を退避
+                let currentVal = el.value;
+
+                // 4W判定を含んだ新しい選択肢でinnerHTMLを上書き
+                el.innerHTML = buildDeptOptionsSlot(slot, p);
+
+                // 退避していた値を再セット（選択肢に残っていれば維持、4Wによって消されていれば自動で空文字になる）
+                el.value = currentVal;
+                if (el.value !== currentVal) {
+                    el.value = "";
+                }
+            }
+        });
     }
 
     function buildFormFields() {
@@ -296,41 +264,33 @@
         document.getElementById("any-fields-container").innerHTML = anyHtml;
 
         let slotHtml = "";
-        serverSlots.forEach((slot, sIdx) => { 
+        serverSlots.forEach((slot) => { 
             slotHtml += `
                 <div class="border p-2 mb-2 rounded bg-light">
                     <span class="badge badge-dark mb-1">${slot}</span>
                     <div class="form-group row mb-1 align-items-center">
                         <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(p1):</label>
-                        <div class="col-8"><select class="form-control form-control-sm slot-p1" id="${slot}p1" onchange="handle4WLinkage('${slot}'); updateAnyOptions(); updateDashboard();">${buildDeptOptionsSlot(sIdx)}</select></div>
+                        <div class="col-8">
+                            <select class="form-control form-control-sm slot-p1" id="${slot}p1" onchange="refreshAllSlotOptions(); updateAnyOptions(); updateDashboard();">
+                                ${buildDeptOptionsSlot(slot, 1)}
+                            </select>
+                        </div>
                     </div>`;
             
             for(let p=2; p<=8; p++) {
                 slotHtml += `
                     <div class="form-group row mb-1 align-items-center">
                         <label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(p${p}):</label>
-                        <div class="col-8"><select class="form-control form-control-sm" id="${slot}p${p}">${buildDeptOptionsSlot(sIdx)}</select></div>
+                        <div class="col-8">
+                            <select class="form-control form-control-sm" id="${slot}p${p}" onchange="refreshAllSlotOptions();">
+                                ${buildDeptOptionsSlot(slot, p)}
+                            </select>
+                        </div>
                     </div>`;
             }
             slotHtml += `</div>`;
         });
         document.getElementById("slot-fields-container").innerHTML = slotHtml;
-    }
-
-    function buildDeptOptionsSlot(sIdx) {
-        let options = '<option value="">-- 選択してください --</option>';
-        serverDepartments.forEach(d => {
-            if (d.name.includes("Capaci") || d.name.includes("Type") || d.id.toString().includes("CID")) {
-                return; 
-            }
-            
-            const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
-            if (capacity > 0) {
-                let typeStr = d.type ? ` (${d.type})` : '';
-                options += `<option value="${d.id}">${d.name}${typeStr}</option>`;
-            }
-        });
-        return options;
     }
 
     function applyFormValues(data) {
@@ -483,6 +443,7 @@
             }
         }
 
+        // バリデーションチェック：4Wの相方が一致しているか
         for (let i = 0; i < serverSlots.length; i++) {
             let slot = serverSlots[i];
             if (!slot.includes("前半")) continue;
