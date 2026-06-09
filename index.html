@@ -249,9 +249,14 @@
     function buildDeptOptionsSlot(sIdx) {
         let options = '<option value="">-- 選択してください --</option>';
         serverDepartments.forEach(d => {
+            if (d.name.includes("Capaci") || d.name.includes("Type") || d.id.toString().includes("CID")) {
+                return; 
+            }
+            
             const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
             if (capacity > 0) {
-                options += `<option value="${d.id}">${d.name} (${d.type ? d.type : ''})</option>`;
+                let typeStr = d.type ? ` (${d.type})` : '';
+                options += `<option value="${d.id}">${d.name}${typeStr}</option>`;
             }
         });
         return options;
