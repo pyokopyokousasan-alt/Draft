@@ -24,7 +24,7 @@
 
 <div class="fixed-header">
     <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">
-        臨床実習 希望調査システム <span class="badge badge-info">ver1.25</span>
+        臨床実習 希望調査システム <span class="badge badge-info">ver1.26</span>
     </div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">
         ログイン中：学籍番号 <span id="current-sid"></span> さん
@@ -140,6 +140,29 @@
             });
     };
 
+    function handle4WLinkage(changedSlot) {
+        const currentVal = document.getElementById(`${changedSlot}p1`).value;
+        if (!currentVal) return;
+
+        const dept = serverDepartments.find(d => d.id == currentVal);
+        if (!dept || dept.type !== "4W") return; // 4Wの講座でなければ何もしない
+
+        let partnerSlot = "";
+        if (changedSlot.includes("前半")) {
+            partnerSlot = changedSlot.replace("前半", "後半");
+        } else if (changedSlot.includes("後半")) {
+            partnerSlot = changedSlot.replace("後半", "前半");
+        }
+
+        if (partnerSlot && document.getElementById(`${partnerSlot}p1`)) {
+            const partnerEl = document.getElementById(`${partnerSlot}p1`);
+            
+            if (partnerEl.value !== currentVal) {
+                partnerEl.value = currentVal;
+                alert(`選択された講座は4W（4週間枠）のため、${partnerSlot}の第1希望にも自動的に設定しました。`);
+            }
+        }
+    }
     function initializeApp() {
         if (!liffUser.uid) return;
 
@@ -174,6 +197,8 @@
                     document.getElementById("status-alert").innerHTML = "🎉 希望調査は提出済みです（変更可能）";
                 }
                 
+                updateAnyOptions(); 
+                
                 updateDashboard();
             })
             .catch(err => {
@@ -182,24 +207,31 @@
     }
 
     function buildFormFields() {
+        // --- Any枠の初期ビルド（最初は選択肢を空、または案内文にする） ---
         let anyHtml = "";
         for(let p=1; p<=4; p++) {
             anyHtml += `
                 <div class="form-group row mb-2 align-items-center">
                     <label class="col-4 font-weight-bold mb-0 pr-0">Any枠 ${p}:</label>
-                    <div class="col-8"><select class="form-control form-control-sm any-select" id="Any${p}" onchange="updateDashboard()">${buildDeptOptionsForAny()}</select></div>
+                    <div class="col-8">
+                        <select class="form-control form-control-sm any-select" id="Any${p}" onchange="updateDashboard()">
+                            <option value="">-- 先に第1希望を選んでください --</option>
+                        </select>
+                    </div>
                 </div>`;
         }
         document.getElementById("any-fields-container").innerHTML = anyHtml;
 
+        // --- 一般枠のビルド ---
         let slotHtml = "";
         serverSlots.forEach((slot, sIdx) => { 
+            // 【変更】onchange に updateAnyOptions() を追加
             slotHtml += `
                 <div class="border p-2 mb-2 rounded bg-light">
-                    <span class="badge badge-dark mb-1">${slot}クール</span>
+                    <span class="badge badge-dark mb-1">${slot}</span>
                     <div class="form-group row mb-1 align-items-center">
                         <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(p1):</label>
-                        <div class="col-8"><select class="form-control form-control-sm slot-p1" id="${slot}p1" onchange="updateDashboard()">${buildDeptOptionsSlot(sIdx)}</select></div>
+                        <div class="col-8"><select class="form-control form-control-sm slot-p1" id="${slot}p1" onchange="handle4WLinkage('${slot}'); updateAnyOptions(); updateDashboard();">${buildDeptOptionsSlot(sIdx)}</select></div>
                     </div>`;
             
             for(let p=2; p<=8; p++) {
@@ -319,6 +351,45 @@
         document.getElementById("history-container").innerHTML = html;
     }
 
+    function updateAnyOptions() {
+        // 1. 現在一般枠の「第1希望(p1)」に選ばれている講座IDをすべて集める
+        let selectedP1Ids = [];
+        serverSlots.forEach(slot => {
+            let el = document.getElementById(`${slot}p1`);
+            if (el && el.value) {
+                selectedP1Ids.push(el.value);
+            }
+        });
+
+        // 重複を除外（一意なIDのリストにする）
+        let uniqueP1Ids = [...new Set(selectedP1Ids)];
+
+        // 2. Any1 〜 Any4 のセレクトボックスを更新する
+        for (let p = 1; p <= 4; p++) {
+            let anyEl = document.getElementById(`Any${p}`);
+            if (!anyEl) continue;
+
+            // 現在選択されている値を退避
+            let currentVal = anyEl.value;
+
+            // 選択肢の再構築
+            let optionsHtml = '<option value="">-- 選択してください --</option>';
+            uniqueP1Ids.forEach(cid => {
+                let dept = serverDepartments.find(d => d.id == cid);
+                if (dept) {
+                    optionsHtml += `<option value="${dept.id}">${dept.name}</option>`;
+                }
+            });
+            anyEl.innerHTML = optionsHtml;
+
+            // 前に選んでいた値が、新しい選択肢の中にも存在すれば再セットする
+            if (uniqueP1Ids.includes(currentVal)) {
+                anyEl.value = currentVal;
+            } else {
+                anyEl.value = ""; // 第1希望から外された場合は未選択に戻す
+            }
+        }
+    }
     function submitData() {
         const sidInput = document.getElementById("student_id");
         const studentId = sidInput.value.trim();
@@ -328,6 +399,17 @@
             return;
         }
 
+        // --- 【追加】一般枠の「第1希望(p1)」がすべて埋まっているかチェック ---
+        for (let i = 0; i < serverSlots.length; i++) {
+            let slot = serverSlots[i];
+            let p1Val = document.getElementById(`${slot}p1`) ? document.getElementById(`${slot}p1`).value : "";
+            if (!p1Val) {
+                alert(`エラー：${slot}の「第1希望(p1)」が選択されていません。すべてのクールの第1希望を入力してから送信してください。`);
+                return; // ここで送信をブロック
+            }
+        }
+
+        // --- Any枠の重複チェック ---
         let anyValues = [];
         for(let p=1; p<=4; p++) {
             let val = document.getElementById(`Any${p}`).value;
@@ -337,6 +419,29 @@
                     return;
                 }
                 anyValues.push(val);
+            }
+        }
+
+        // --- 一般枠（クール内）の4Wバリデーションチェック ---
+        for (let i = 0; i < serverSlots.length; i++) {
+            let slot = serverSlots[i];
+            if (!slot.includes("前半")) continue;
+
+            let partnerSlot = slot.replace("前半", "後半");
+            
+            for (let p = 1; p <= 8; p++) {
+                let val1 = document.getElementById(`${slot}p${p}`) ? document.getElementById(`${slot}p${p}`).value : "";
+                let val2 = document.getElementById(`${partnerSlot}p${p}`) ? document.getElementById(`${partnerSlot}p${p}`).value : "";
+                
+                let dept1 = serverDepartments.find(d => d.id == val1);
+                let dept2 = serverDepartments.find(d => d.id == val2);
+
+                if ((dept1 && dept1.type === "4W") || (dept2 && dept2.type === "4W")) {
+                    if (val1 !== val2) {
+                        alert(`エラー：${slot.replace("前半","")}クールの第${p}希望に4週間(4W)の講座が含まれています。前半と後半には必ず同じ講座を選択してください。`);
+                        return;
+                    }
+                }
             }
         }
 
@@ -359,7 +464,12 @@
 
         payload["access_token"] = liff.getAccessToken();     
 
-        fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
+        fetch(GAS_API_URL, { 
+            method: "POST", 
+            mode: "cors",
+            headers: { "Content-Type": "text/plain" },
+            body: JSON.stringify(payload) 
+        })
             .then(res => res.json())
             .then(res => {
                 alert(res.message);
