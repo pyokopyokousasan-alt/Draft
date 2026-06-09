@@ -239,16 +239,40 @@
                     document.getElementById("login-info").style.display = "block";
                     document.getElementById("current-sid").innerText = latest.student_id;
                     
+                    // 1. 過去の希望値を反映
                     applyFormValues(latest);
+                    
+                    // ==========================================
+                    // ★【ここを追加】初期読み込み時の4Wロック状態を復元
+                    // ==========================================
+                    serverSlots.forEach(slot => {
+                        // 「前半」クールを対象に、現在の選択内容を元にロックをかける
+                        if (slot.includes("前半")) {
+                            // 初期化時のアラートポップアップを防ぐために、この時点だけ条件を限定するか、
+                            // あるいはそのまま handle4WLinkage を呼び出します。
+                            // ただし既存の handle4WLinkage だと「自動設定しました」のアラートが出てしまうため、
+                            // 静かにロックだけを復元するロジックをここに割り込ませます。
+                            
+                            const currentVal = document.getElementById(`${slot}p1`).value;
+                            if (currentVal) {
+                                const dept = serverDepartments.find(d => d.id == currentVal);
+                                if (dept && dept.type === "4W") {
+                                    let partnerSlot = slot.replace("前半", "後半");
+                                    const partnerEl = document.getElementById(`${partnerSlot}p1`);
+                                    if (partnerEl) {
+                                        partnerEl.disabled = true; // 強制ロック
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    // ==========================================
+
                     document.getElementById("status-alert").className = "alert alert-success text-center font-weight-bold";
                     document.getElementById("status-alert").innerHTML = "🎉 希望調査は提出済みです（変更可能）";
                 }
                 
-                // 1. 先にAny枠の同期（セレクトボックスHTML再構築）
                 updateAnyOptions(); 
-                // 2. その後、最新データ状態に基づきロック状態を確実に適用
-                refreshLockState();
-                // 3. ダッシュボードの描画更新
                 updateDashboard();
             })
             .catch(err => {
