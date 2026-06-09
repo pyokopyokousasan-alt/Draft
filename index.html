@@ -325,7 +325,7 @@
 
         let anyValues = [];
         for(let p=1; p<=4; p++) {
-            let val = document.getElementById(`Any_P${p}`).value;
+            let val = document.getElementById(`Any${p}`).value;
             if(val) {
                 if(anyValues.includes(val)) {
                     alert("エラー：Any枠の中で同じ講座を重複して選択することはできません。");
@@ -334,6 +334,29 @@
                 anyValues.push(val);
             }
         }
+
+        let payload = { line_uid: liffUser.uid, student_id: studentId };
+        
+        for(let p=1; p<=4; p++) { payload[`Any${p}`] = document.getElementById(`Any${p}`).value; }
+        serverSlots.forEach(slot => {
+            for(let p=1; p<=8; p++) { 
+                let key = `${slot}p${p}`;
+                payload[key] = document.getElementById(key).value; 
+            }
+        });
+
+        if (!confirm("希望データを送信します。よろしいですか？")) return;
+
+        payload["access_token"] = liff.getAccessToken();     
+
+        fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
+            .then(res => res.json())
+            .then(res => {
+                alert(res.message);
+                if(res.success) { initializeApp(); }
+            })
+            .catch(err => alert("通信エラーが発生しました。" + err));
+    }
 
         let payload = { line_uid: liffUser.uid, student_id: studentId };
         
