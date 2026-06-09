@@ -24,7 +24,7 @@
 
 <div class="fixed-header">
     <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">
-        臨床実習 希望調査システム <span class="badge badge-info">ver1.21</span>
+        臨床実習 希望調査システム <span class="badge badge-info">ver1.22</span>
     </div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">
         ログイン中：学籍番号 <span id="current-sid"></span> さん
@@ -116,8 +116,7 @@
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyMjVcIhOeat7Fe6TPk0ys2W4BJl9zPRevKfGky6hg5cPxEzw0GzuO-gKiADgiEirtkuQ/exec"; 
     let serverDepartments = [];
     let serverSlots = [];
-    let serverAnyCounts = {};
-    
+    let serverAnyCounts = { Any1:{}, Any2:{}, Any3:{}, Any4:{} };
     let liffUser = { uid: "" }; 
 
     window.onload = function() {
@@ -147,9 +146,13 @@
         fetch(`${GAS_API_URL}?uid=${liffUser.uid}`)
             .then(res => res.json())
             .then(data => {
+                if (!data.success) {
+                    alert("サーバーエラーが発生しました: " + data.message);
+                    return;
+                }
                 serverDepartments = data.departments;
                 serverSlots = data.slots;
-                serverAnyCounts = data.anyCounts || { Any_P1:{}, Any_P2:{}, Any_P3:{}, Any_P4:{} };
+                serverAnyCounts = data.anyCounts || { Any1:{}, Any2:{}, Any3:{}, Any4:{} };
                 
                 buildFormFields();
                 renderHistory(data.history);
@@ -174,7 +177,7 @@
                 updateDashboard();
             })
             .catch(err => {
-                alert("データの読み込みに失敗しました。再読み込みしてください。");
+                alert("データの読み込みに失敗しました。再読み込みしてください。" + err);
             });
     }
 
@@ -184,7 +187,7 @@
             anyHtml += `
                 <div class="form-group row mb-2 align-items-center">
                     <label class="col-4 font-weight-bold mb-0 pr-0">Any枠 ${p}:</label>
-                    <div class="col-8"><select class="form-control form-control-sm any-select" id="Any_P${p}" onchange="updateDashboard()">${buildDeptOptionsForAny()}</select></div>
+                    <div class="col-8"><select class="form-control form-control-sm any-select" id="Any${p}" onchange="updateDashboard()">${buildDeptOptionsForAny()}</select></div>
                 </div>`;
         }
         document.getElementById("any-fields-container").innerHTML = anyHtml;
@@ -193,18 +196,17 @@
         serverSlots.forEach((slot, sIdx) => { 
             slotHtml += `
                 <div class="border p-2 mb-2 rounded bg-light">
-                    <span class="badge badge-dark mb-1">${slot}</span>
+                    <span class="badge badge-dark mb-1">${slot}クール</span>
                     <div class="form-group row mb-1 align-items-center">
-                        <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(P1):</label>
-                        <div class="col-8"><select class="form-control form-control-sm slot-p1" id="${slot}_P1" onchange="updateDashboard()">${buildDeptOptionsSlot(sIdx)}</select></div>
+                        <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(p1):</label>
+                        <div class="col-8"><select class="form-control form-control-sm slot-p1" id="${slot}p1" onchange="updateDashboard()">${buildDeptOptionsSlot(sIdx)}</select></div>
                     </div>`;
             
-            // ✨ 第2希望から「第8希望」までループでドロップダウンを生成
             for(let p=2; p<=8; p++) {
                 slotHtml += `
                     <div class="form-group row mb-1 align-items-center">
-                        <label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(P${p}):</label>
-                        <div class="col-8"><select class="form-control form-control-sm" id="${slot}_P${p}">${buildDeptOptionsSlot(sIdx)}</select></div>
+                        <label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(p${p}):</label>
+                        <div class="col-8"><select class="form-control form-control-sm" id="${slot}p${p}">${buildDeptOptionsSlot(sIdx)}</select></div>
                     </div>`;
             }
             slotHtml += `</div>`;
@@ -217,7 +219,7 @@
         serverDepartments.forEach(d => {
             const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
             if (capacity > 0) {
-                options += `<option value="${d.id}">${d.name} (倍率:${d.ratio})</option>`;
+                options += `<option value="${d.id}">${d.name} (${d.type ? d.type : ''})</option>`;
             }
         });
         return options;
@@ -226,19 +228,21 @@
     function buildDeptOptionsForAny() {
         let options = '<option value="">-- 選択してください --</option>';
         serverDepartments.forEach(d => {
-             options += `<option value="${d.id}">${d.name} (倍率:${d.ratio})</option>`;
+             options += `<option value="${d.id}">${d.name}</option>`;
         });
         return options;
     }
 
     function applyFormValues(data) {
         for(let p=1; p<=4; p++) {
-            if(data[`Any_P${p}`]) document.getElementById(`Any_P${p}`).value = data[`Any_P${p}`];
+            if(data[`Any${p}`]) document.getElementById(`Any${p}`).value = data[`Any${p}`];
         }
         serverSlots.forEach(slot => {
-            // ✨ 既存データの復元処理を「P1〜P8」までカバー
             for(let p=1; p<=8; p++) {
-                if(data[`${slot}_P${p}`]) document.getElementById(`${slot}_P${p}`).value = data[`${slot}_P${p}`];
+                let key = `${slot}p${p}`;
+                if(data[key] && document.getElementById(key)) {
+                    document.getElementById(key).value = data[key];
+                }
             }
         });
     }
@@ -246,14 +250,14 @@
     function updateDashboard() {
         let calHtml = "";
         serverSlots.forEach(slot => {
-            let el = document.getElementById(`${slot}_P1`);
+            let el = document.getElementById(`${slot}p1`);
             let val = el ? el.value : "";
             let dept = serverDepartments.find(d => d.id == val);
             let name = dept ? dept.name : '<span class="text-muted">未選択</span>';
             let ratioStr = dept ? ` [リアルタイム倍率: ${dept.ratio}]` : "";
             calHtml += `
                 <div class="timeline-item">
-                    <div class="font-weight-bold" style="font-size:0.85rem;">${slot}</div>
+                    <div class="font-weight-bold" style="font-size:0.85rem;">${slot}クール</div>
                     <div class="text-primary font-weight-bold" style="font-size:0.9rem;">${name}<small class="text-danger">${ratioStr}</small></div>
                 </div>`;
         });
@@ -261,7 +265,7 @@
 
         let anyHtml = "";
         let cumulativeVotes = {}; 
-        const anyKeys = ["Any_P1", "Any_P2", "Any_P3", "Any_P4"];
+        const anyKeys = ["Any1", "Any2", "Any3", "Any4"];
 
         anyKeys.forEach((key, idx) => {
             let el = document.getElementById(key);
@@ -274,13 +278,14 @@
             let dept = serverDepartments.find(d => d.id == val);
             if (!dept) return;
 
-            cumulativeVotes[val] = (cumulativeVotes[val] || 0) + (serverAnyCounts[key][val] || 0);
+            let currentVotes = (serverAnyCounts[key] && serverAnyCounts[key][val]) ? serverAnyCounts[key][val] : 0;
+            cumulativeVotes[val] = (cumulativeVotes[val] || 0) + currentVotes;
             let totalCapacity = dept.totalCapacity || 15; 
             let ratio = Math.round((cumulativeVotes[val] / totalCapacity) * 10) / 10;
 
             let badge = "";
             if (ratio <= 1.0) badge = `<span class="badge badge-success px-2 py-1">見込み: 高 (安全)</span>`;
-            else if (ratio <= 1.5) badge = `<span class="badge badge-warning px-2 py-1">見込み: 中 (ボーボー)</span>`;
+            else if (ratio <= 1.5) badge = `<span class="badge badge-warning px-2 py-1">見込み: 中 (混雑)</span>`;
             else badge = `<span class="badge badge-danger px-2 py-1">見込み: 低 (高倍率)</span>`;
 
             anyHtml += `
@@ -307,7 +312,7 @@
                     </div>
                     <div class="card-body p-2" style="font-size:0.75rem;">
                         <div>学籍番号: <strong>${h.student_id}</strong></div>
-                        <div class="text-truncate">Any1: ${h.Any_P1 || "未指定"} / Any2: ${h.Any_P2 || "未指定"}</div>
+                        <div class="text-truncate">Any1: ${h.Any1 || "未指定"} / Any2: ${h.Any2 || "未指定"} / Any3: ${h.Any3 || "未指定"} / Any4: ${h.Any4 || "未指定"}</div>
                     </div>
                 </div>`;
         });
@@ -337,33 +342,17 @@
 
         let payload = { line_uid: liffUser.uid, student_id: studentId };
         
-        for(let p=1; p<=4; p++) { payload[`Any${p}`] = document.getElementById(`Any${p}`).value; }
+        for(let p=1; p<=4; p++) { 
+            payload[`Any${p}`] = document.getElementById(`Any${p}`).value; 
+        }
+        
         serverSlots.forEach(slot => {
             for(let p=1; p<=8; p++) { 
                 let key = `${slot}p${p}`;
-                payload[key] = document.getElementById(key).value; 
+                if(document.getElementById(key)) {
+                    payload[key] = document.getElementById(key).value; 
+                }
             }
-        });
-
-        if (!confirm("希望データを送信します。よろしいですか？")) return;
-
-        payload["access_token"] = liff.getAccessToken();     
-
-        fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) })
-            .then(res => res.json())
-            .then(res => {
-                alert(res.message);
-                if(res.success) { initializeApp(); }
-            })
-            .catch(err => alert("通信エラーが発生しました。" + err));
-    }
-
-        let payload = { line_uid: liffUser.uid, student_id: studentId };
-        
-        for(let p=1; p<=4; p++) { payload[`Any_P` + p] = document.getElementById(`Any_P${p}`).value; }
-        serverSlots.forEach(slot => {
-            // ✨ GASに送るデータを「P1〜P8」まで全て回収
-            for(let p=1; p<=8; p++) { payload[`${slot}_P${p}`] = document.getElementById(`${slot}_P${p}`).value; }
         });
 
         if (!confirm("希望データを送信します。よろしいですか？")) return;
