@@ -24,7 +24,7 @@
 
 <div class="fixed-header">
     <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">
-        臨床実習 希望調査システム <span class="badge badge-info">ver1.10</span>
+        臨床実習 希望調査システム <span class="badge badge-info">ver1.20</span>
     </div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">
         ログイン中：学籍番号 <span id="current-sid"></span> さん
@@ -118,7 +118,6 @@
     let serverSlots = [];
     let serverAnyCounts = {};
     
-    // ★ 修正：テスト用のダミーIDを削除し、空のオブジェクトとして定義
     let liffUser = { uid: "" }; 
 
     window.onload = function() {
@@ -127,11 +126,10 @@
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
-                    // ★ 修正：確実にプロフィールを取得し終えてから、アプリを初期化する流れに統一
                     liff.getProfile()
                         .then(profile => {
-                            liffUser.uid = profile.userId; // 本物のLINE UIDを格納
-                            initializeApp(); // ここで初めてGASとの通信や画面構築を開始
+                            liffUser.uid = profile.userId; 
+                            initializeApp(); 
                         })
                         .catch(err => {
                             alert("LINEプロフィールの取得に失敗しました。電波状況の良い場所で再試行してください。");
@@ -139,13 +137,11 @@
                 }
             })
             .catch(err => {
-                // ★ 修正：LINEアプリ外（テストモード）での強制実行（.catch内のinitializeApp）を完全に除去
                 alert("LIFFの初期化に失敗しました。LINEアプリ内からアクセスしてください。");
             });
     };
 
     function initializeApp() {
-        // 念のため、UIDが取得できているかチェック
         if (!liffUser.uid) return;
 
         fetch(`${GAS_API_URL}?uid=${liffUser.uid}`)
@@ -194,7 +190,6 @@
         document.getElementById("any-fields-container").innerHTML = anyHtml;
 
         let slotHtml = "";
-        // ★ 変更点: 引数に idx (スロットの順番 0〜15) を追加
         serverSlots.forEach((slot, sIdx) => { 
             slotHtml += `
                 <div class="border p-2 mb-2 rounded bg-light">
@@ -203,7 +198,9 @@
                         <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(P1):</label>
                         <div class="col-8"><select class="form-control form-control-sm slot-p1" id="${slot}_P1" onchange="updateDashboard()">${buildDeptOptionsSlot(sIdx)}</select></div>
                     </div>`;
-            for(let p=2; p<=5; p++) {
+            
+            // ✨ 第2希望から「第8希望」までループでドロップダウンを生成
+            for(let p=2; p<=8; p++) {
                 slotHtml += `
                     <div class="form-group row mb-1 align-items-center">
                         <label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(P${p}):</label>
@@ -215,14 +212,10 @@
         document.getElementById("slot-fields-container").innerHTML = slotHtml;
     }
 
-    // ★ 新設: 一般枠用（定員が0より大きい講座だけをセレクトボックスに並べる）
     function buildDeptOptionsSlot(sIdx) {
         let options = '<option value="">-- 選択してください --</option>';
         serverDepartments.forEach(d => {
-            // GASから届いた slotCapacities の中から、該当スロットの定員を取得
             const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
-            
-            // 定員が0より大きい場合のみ、選択肢として追加する
             if (capacity > 0) {
                 options += `<option value="${d.id}">${d.name} (倍率:${d.ratio})</option>`;
             }
@@ -230,7 +223,6 @@
         return options;
     }
 
-    // ★ 新設: Any枠用（Any枠は全クール対象のため、今まで通りすべての講座を並べる）
     function buildDeptOptionsForAny() {
         let options = '<option value="">-- 選択してください --</option>';
         serverDepartments.forEach(d => {
@@ -238,12 +230,14 @@
         });
         return options;
     }
+
     function applyFormValues(data) {
         for(let p=1; p<=4; p++) {
             if(data[`Any_P${p}`]) document.getElementById(`Any_P${p}`).value = data[`Any_P${p}`];
         }
         serverSlots.forEach(slot => {
-            for(let p=1; p<=5; p++) {
+            // ✨ 既存データの復元処理を「P1〜P8」までカバー
+            for(let p=1; p<=8; p++) {
                 if(data[`${slot}_P${p}`]) document.getElementById(`${slot}_P${p}`).value = data[`${slot}_P${p}`];
             }
         });
@@ -286,7 +280,7 @@
 
             let badge = "";
             if (ratio <= 1.0) badge = `<span class="badge badge-success px-2 py-1">見込み: 高 (安全)</span>`;
-            else if (ratio <= 1.5) badge = `<span class="badge badge-warning px-2 py-1">見込み: 中 (ボーダー)</span>`;
+            else if (ratio <= 1.5) badge = `<span class="badge badge-warning px-2 py-1">見込み: 中 (ボーボー)</span>`;
             else badge = `<span class="badge badge-danger px-2 py-1">見込み: 低 (高倍率)</span>`;
 
             anyHtml += `
@@ -343,9 +337,10 @@
 
         let payload = { line_uid: liffUser.uid, student_id: studentId };
         
-        for(let p=1; p<=4; p++) { payload[`Any_P${p}`] = document.getElementById(`Any_P${p}`).value; }
+        for(let p=1; p<=4; p++) { payload[`Any_P` + p] = document.getElementById(`Any_P${p}`).value; }
         serverSlots.forEach(slot => {
-            for(let p=1; p<=5; p++) { payload[`${slot}_P${p}`] = document.getElementById(`${slot}_P${p}`).value; }
+            // ✨ GASに送るデータを「P1〜P8」まで全て回収
+            for(let p=1; p<=8; p++) { payload[`${slot}_P${p}`] = document.getElementById(`${slot}_P${p}`).value; }
         });
 
         if (!confirm("希望データを送信します。よろしいですか？")) return;
