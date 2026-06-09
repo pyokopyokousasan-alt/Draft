@@ -2,116 +2,125 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>臨床実習 希望調査システム ver2.0</title>
+    <title>臨床実習 希望調査システム 完全統合版</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
-        .ratio-low { color: #28a745; font-weight: bold; }
-        .ratio-mid { color: #d39e00; font-weight: bold; }
-        .ratio-high { color: #dc3545; font-weight: bold; }
-        .ratio-label { font-size: 0.8rem; margin-left: 5px; }
+        body { background-color: #f8f9fa; }
         .form-section { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #dee2e6; }
+        .cool-box { border: 2px solid #007bff; border-radius: 8px; padding: 10px; margin-bottom: 15px; background: #fff; }
     </style>
 </head>
-<body class="bg-light p-3">
+<body class="p-3">
 <div class="container bg-white p-4 rounded shadow-sm">
-    <h4 class="mb-4">実習希望調査</h4>
-    <form id="hopeForm">
+    <h4>臨床実習 希望調査システム</h4>
+    <div id="status" class="alert alert-info">ログイン確認中...</div>
+    <form id="hopeForm" style="display:none;">
         <div class="form-section">
-            <h6>学生認証</h6>
-            <input type="text" class="form-control" id="student_id" placeholder="学籍番号6桁" maxlength="6">
+            <h6>学籍番号: <span id="sid-display"></span></h6>
+            <input type="hidden" id="student_id">
         </div>
         <div class="form-section">
-            <h6>Any枠 (第1希望より選択)</h6>
+            <h6>Any枠 (第1希望と重複不可)</h6>
             <div id="any-container"></div>
         </div>
         <div class="form-section">
-            <h6>一般枠 (第1〜5希望)</h6>
+            <h6>一般枠 (全16クール)</h6>
             <div id="slot-container"></div>
         </div>
         <button type="button" class="btn btn-success btn-block" onclick="submitData()">希望を送信する</button>
     </form>
 </div>
 
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
-    const GAS_API_URL = "ここにデプロイURLを記述";
-    let serverDepartments = [], serverSlots = [];
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyMjVcIhOeat7Fe6TPk0ys2W4BJl9zPRevKfGky6hg5cPxEzw0GzuO-gKiADgiEirtkuQ/exec";
+    let serverDepartments = [];
 
-    async function init() {
-        const res = await fetch(GAS_API_URL);
+    // --- 1. 初期化と認証 ---
+    window.onload = () => {
+        liff.init({ liffId: "2010321278-kOScGbBq" }).then(() => {
+            if (!liff.isLoggedIn()) liff.login();
+            else liff.getProfile().then(p => loadData(p.userId));
+        });
+    };
+
+    async function loadData(uid) {
+        const res = await fetch(`${GAS_API_URL}?uid=${uid}`);
         const data = await res.json();
-        serverDepartments = data.departments; // {id, name, ratio}
-        serverSlots = data.slots;
+        if (!data.authorized) { document.getElementById("status").innerText = "認証エラー"; return; }
+        
+        serverDepartments = data.departments;
+        document.getElementById("status").style.display = "none";
+        document.getElementById("hopeForm").style.display = "block";
+        document.getElementById("student_id").value = data.student_id;
+        document.getElementById("sid-display").innerText = data.student_id;
         renderForm();
-        if(data.latest) restoreData(data.latest);
     }
 
+    // --- 2. フォーム生成と制御 ---
     function renderForm() {
         // Any枠
         let anyHtml = "";
-        for(let i=1; i<=4; i++) anyHtml += `<select class="form-control my-1" id="Any_P${i}">${buildOptions()}</select>`;
+        for(let i=1; i<=4; i++) anyHtml += `<select class="form-control mb-1" id="Any_P${i}">${buildOptions()}</select>`;
         document.getElementById("any-container").innerHTML = anyHtml;
 
-        // 一般枠
+        // 一般枠 (16クール)
         let slotHtml = "";
-        serverSlots.forEach(s => {
-            slotHtml += `<strong>${s}</strong>`;
+        for(let c=1; c<=16; c++) {
+            slotHtml += `<div class="cool-box"><h6>第${c}クール</h6>`;
             for(let p=1; p<=5; p++) {
-                slotHtml += `<div><select class="form-control form-control-sm my-1" onchange="updateLabel(this)" id="${s}_P${p}">${buildOptions()}</select><span class="ratio-label"></span></div>`;
+                slotHtml += `<select class="form-control mb-1" id="${c}p${p}" onchange="onSelectChange('${c}p${p}')">${buildOptions()}</select>`;
             }
-        });
+            slotHtml += `</div>`;
+        }
         document.getElementById("slot-container").innerHTML = slotHtml;
     }
 
     function buildOptions() {
         return '<option value="">選択してください</option>' + 
-               serverDepartments.map(d => `<option value="${d.id}">${d.name}</option>`).join("");
+               serverDepartments.map(d => `<option value="${d.id}">${d.name} (${d.type})</option>`).join("");
     }
 
-    function updateLabel(el) {
-        const d = serverDepartments.find(x => x.id == el.value);
-        const l = el.nextElementSibling;
-        if(d) {
-            let cls = d.ratio >= 2.0 ? 'ratio-high' : (d.ratio >= 1.0 ? 'ratio-mid' : 'ratio-low');
-            l.className = 'ratio-label ' + cls;
-            l.innerText = ` (倍率:${d.ratio})`;
+    // --- 3. 排他制御ロジック ---
+    function onSelectChange(pId) {
+        const coolNum = pId.split('p')[0];
+        const el = document.getElementById(pId);
+        const dept = serverDepartments.find(d => d.id == el.value);
+
+        if (dept && dept.type === "4W") {
+            for(let i=1; i<=5; i++) {
+                let other = document.getElementById(`${coolNum}p${i}`);
+                if (other && other !== el) { other.value = ""; other.disabled = true; }
+            }
+        } else {
+            for(let i=1; i<=5; i++) document.getElementById(`${coolNum}p${i}`).disabled = false;
         }
     }
 
-    function validate() {
-        let stats = { '1000': 0, '2000': 0, '3000': 0 };
+    // --- 4. 最終バリデーションと送信 ---
+    function submitData() {
+        // 重複チェック: Anyと第1希望
         let anyVals = [];
+        for(let i=1; i<=4; i++) anyVals.push(document.getElementById(`Any_P${i}`).value);
         
-        // Any枠重複と第一希望由来チェック
-        for(let i=1; i<=4; i++) {
-            let val = document.getElementById(`Any_P${i}`).value;
-            if(!val) continue;
-            if(anyVals.includes(val)) return "Any枠で重複があります。";
-            anyVals.push(val);
+        for(let c=1; c<=16; c++) {
+            let p1 = document.getElementById(`${c}p1`).value;
+            if(p1 && anyVals.includes(p1)) { alert("エラー：Anyと第1希望で重複があります"); return; }
         }
 
-        // 規定チェック
-        serverSlots.forEach(s => {
-            let p1 = document.getElementById(`${s}_P1`).value;
-            if(p1.startsWith('1')) stats['1000']++;
-            else if(p1.startsWith('2')) stats['2000']++;
-            else if(p1.startsWith('3')) stats['3000']++;
-        });
+        // 占有チェック: 4W=2.0, 2W/H=0.4
+        for(let c=1; c<=16; c++) {
+            let size = 0;
+            for(let p=1; p<=5; p++) {
+                let dept = serverDepartments.find(d => d.id == document.getElementById(`${c}p${p}`).value);
+                if(dept) size += (dept.type === "4W" ? 2.0 : 0.4);
+            }
+            if(size > 2.0) { alert(`第${c}クールで枠超過です`); return; }
+        }
 
-        if(stats['1000'] < 2) return "1000番台は2クール以上必要です。";
-        if(stats['2000'] < 1) return "2000番台は1クール以上必要です。";
-        if(stats['3000'] < 1 || stats['3000'] > 3) return "3000番台は1〜3クールで選択してください。";
-        return null;
+        alert("送信処理開始");
+        // ここで fetch(GAS_API_URL, {method:"POST", ...})
     }
-
-    async function submitData() {
-        let error = validate();
-        if(error) { alert(error); return; }
-        
-        // サーバーへ送信処理
-        alert("送信成功");
-    }
-
-    init();
 </script>
 </body>
 </html>
