@@ -24,7 +24,7 @@
 
 <div class="fixed-header">
     <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">
-        臨床実習 希望調査システム <span class="badge badge-info">ver1.28</span>
+        臨床実習 希望調査システム <span class="badge badge-info">ver1.30</span>
     </div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">
         ログイン中：学籍番号 <span id="current-sid"></span> さん
@@ -140,10 +140,10 @@
             });
     };
 
+    // 4W枠の選択連動およびロックを統合管理する関数
     function handle4WLinkage(changedSlot) {
         const currentVal = document.getElementById(`${changedSlot}p1`).value;
         
-        // 相方のスロット名を特定
         let partnerSlot = "";
         if (changedSlot.includes("前半")) {
             partnerSlot = changedSlot.replace("前半", "後半");
@@ -153,35 +153,63 @@
         if (!partnerSlot || !document.getElementById(`${partnerSlot}p1`)) return;
 
         const partnerEl = document.getElementById(`${partnerSlot}p1`);
-
-        // 1. 未選択（空）に戻された場合の処理
-        if (!currentVal) {
-            // 相方がロックされていた（＝元々4Wだった）なら、相方も未選択に戻してロック解除
-            if (partnerEl.disabled) {
-                partnerEl.value = "";
-                partnerEl.disabled = false;
-            }
-            return;
-        }
-
         const dept = serverDepartments.find(d => d.id == currentVal);
 
-        // 2. 選択された講座が「4W」の場合のロック処理
         if (dept && dept.type === "4W") {
+            // 4W講座が選ばれた場合、相方を同じ値にしてロック
             if (partnerEl.value !== currentVal) {
                 partnerEl.value = currentVal;
                 alert(`選択された講座は4W（4週間枠）のため、${partnerSlot}の第1希望に自動設定し、手動変更をロックしました。`);
             }
-            partnerEl.disabled = true; // 相方をロック（変更不可に）
         } else {
-            // 3. 選択された講座が「2W（4W以外）」の場合のアンロック処理
-            // もし相方がロックされていた（＝以前4Wが選ばれていた）場合はロックを解除する
-            if (partnerEl.disabled) {
+            // 2W（または空）が選ばれた時、もし相方が自分と同じ値のままロックされていたら解除
+            // (相方側が4Wである場合はロックを維持したいため、値の矛盾チェックを挟む)
+            const partnerDept = serverDepartments.find(d => d.id == partnerEl.value);
+            if (partnerDept && partnerDept.type === "4W") {
+                // 相方側が主導の4Wロックなので何もしない
+            } else {
+                // どちらも4Wでないならロックを確実に解除
                 partnerEl.disabled = false;
-                partnerEl.value = ""; // 矛盾を防ぐため一旦空にする
             }
         }
+
+        // ロック状態を最新の入力値ベースで再評価して適用
+        refreshLockState();
     }
+
+    // 全スロットを走査して、4Wルールに基づくdisabled状態を正しく決定・適用する関数
+    function refreshLockState() {
+        // まず一般枠の全第一希望のdisabledを一回解除（再評価のため）
+        serverSlots.forEach(slot => {
+            let el = document.getElementById(`${slot}p1`);
+            if (el) el.disabled = false;
+        });
+
+        // 前半に4Wがあるか、後半に4Wがあるかをチェックして適切にロックを掛ける
+        serverSlots.forEach(slot => {
+            if (slot.includes("前半")) {
+                let partnerSlot = slot.replace("前半", "後半");
+                let el1 = document.getElementById(`${slot}p1`);
+                let el2 = document.getElementById(`${partnerSlot}p1`);
+
+                if (el1 && el2) {
+                    let dept1 = serverDepartments.find(d => d.id == el1.value);
+                    let dept2 = serverDepartments.find(d => d.id == el2.value);
+
+                    if (dept1 && dept1.type === "4W") {
+                        // 前半が4Wなら、後半のセレクトボックスをロック
+                        el2.value = el1.value;
+                        el2.disabled = true;
+                    } else if (dept2 && dept2.type === "4W") {
+                        // 後半が4Wなら、前半のセレクトボックスをロック
+                        el1.value = el2.value;
+                        el1.disabled = true;
+                    }
+                }
+            }
+        });
+    }
+
     function initializeApp() {
         if (!liffUser.uid) return;
 
@@ -216,8 +244,11 @@
                     document.getElementById("status-alert").innerHTML = "🎉 希望調査は提出済みです（変更可能）";
                 }
                 
+                // 1. 先にAny枠の同期（セレクトボックスHTML再構築）
                 updateAnyOptions(); 
-                
+                // 2. その後、最新データ状態に基づきロック状態を確実に適用
+                refreshLockState();
+                // 3. ダッシュボードの描画更新
                 updateDashboard();
             })
             .catch(err => {
@@ -226,7 +257,6 @@
     }
 
     function buildFormFields() {
-        // --- Any枠の初期ビルド（最初は選択肢を空、または案内文にする） ---
         let anyHtml = "";
         for(let p=1; p<=4; p++) {
             anyHtml += `
@@ -241,10 +271,8 @@
         }
         document.getElementById("any-fields-container").innerHTML = anyHtml;
 
-        // --- 一般枠のビルド ---
         let slotHtml = "";
         serverSlots.forEach((slot, sIdx) => { 
-            // 【変更】onchange に updateAnyOptions() を追加
             slotHtml += `
                 <div class="border p-2 mb-2 rounded bg-light">
                     <span class="badge badge-dark mb-1">${slot}</span>
@@ -277,14 +305,6 @@
                 let typeStr = d.type ? ` (${d.type})` : '';
                 options += `<option value="${d.id}">${d.name}${typeStr}</option>`;
             }
-        });
-        return options;
-    }
-
-    function buildDeptOptionsForAny() {
-        let options = '<option value="">-- 選択してください --</option>';
-        serverDepartments.forEach(d => {
-             options += `<option value="${d.id}">${d.name}</option>`;
         });
         return options;
     }
@@ -407,21 +427,8 @@
                 anyEl.value = ""; 
             }
         }
-
-        serverSlots.forEach(slot => {
-            if (slot.includes("前半")) {
-                let partnerSlot = slot.replace("前半", "後半");
-                let el1 = document.getElementById(`${slot}p1`);
-                let el2 = document.getElementById(`${partnerSlot}p1`);
-                if (el1 && el2 && el1.value) {
-                    let dept = serverDepartments.find(d => d.id == el1.value);
-                    if (dept && dept.type === "4W") {
-                        el2.disabled = true; // 後半をロック
-                    }
-                }
-            }
-        });
     }
+
     function submitData() {
         const sidInput = document.getElementById("student_id");
         const studentId = sidInput.value.trim();
@@ -436,7 +443,7 @@
             let p1Val = document.getElementById(`${slot}p1`) ? document.getElementById(`${slot}p1`).value : "";
             if (!p1Val) {
                 alert(`エラー：${slot}の「第1希望(p1)」が選択されていません。すべてのクールの第1希望を入力してから送信してください。`);
-                return; // ここで送信をブロック
+                return;
             }
         }
 
