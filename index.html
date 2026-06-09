@@ -117,7 +117,9 @@
     let serverDepartments = [];
     let serverSlots = [];
     let serverAnyCounts = {};
-    let liffUser = { uid: "test-uid-123456" }; 
+    
+    // ★ 修正：テスト用のダミーIDを削除し、空のオブジェクトとして定義
+    let liffUser = { uid: "" }; 
 
     window.onload = function() {
         liff.init({ liffId: "2010321278-kOScGbBq" })
@@ -125,19 +127,27 @@
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
-                    liff.getProfile().then(profile => {
-                        liffUser.uid = profile.userId;
-                        initializeApp();
-                    });
+                    // ★ 修正：確実にプロフィールを取得し終えてから、アプリを初期化する流れに統一
+                    liff.getProfile()
+                        .then(profile => {
+                            liffUser.uid = profile.userId; // 本物のLINE UIDを格納
+                            initializeApp(); // ここで初めてGASとの通信や画面構築を開始
+                        })
+                        .catch(err => {
+                            alert("LINEプロフィールの取得に失敗しました。電波状況の良い場所で再試行してください。");
+                        });
                 }
             })
             .catch(err => {
-                console.log("LIFF Init failed, running in test mode.", err);
-                initializeApp();
+                // ★ 修正：LINEアプリ外（テストモード）での強制実行（.catch内のinitializeApp）を完全に除去
+                alert("LIFFの初期化に失敗しました。LINEアプリ内からアクセスしてください。");
             });
     };
 
     function initializeApp() {
+        // 念のため、UIDが取得できているかチェック
+        if (!liffUser.uid) return;
+
         fetch(`${GAS_API_URL}?uid=${liffUser.uid}`)
             .then(res => res.json())
             .then(data => {
@@ -152,13 +162,11 @@
                     const latest = data.history[0];
                     const sidInput = document.getElementById("student_id");
                     
-                    // 学籍番号を自動入力・固定
                     sidInput.value = latest.student_id;
                     sidInput.disabled = true;
                     sidInput.classList.add("bg-secondary", "text-white");
                     document.getElementById("id-lock-msg").style.display = "block";
 
-                    // ログイン情報表示
                     document.getElementById("login-info").style.display = "block";
                     document.getElementById("current-sid").innerText = latest.student_id;
                     
@@ -168,6 +176,9 @@
                 }
                 
                 updateDashboard();
+            })
+            .catch(err => {
+                alert("データの読み込みに失敗しました。再読み込みしてください。");
             });
     }
 
@@ -177,25 +188,26 @@
             anyHtml += `
                 <div class="form-group row mb-2 align-items-center">
                     <label class="col-4 font-weight-bold mb-0 pr-0">Any枠 ${p}:</label>
-                    <div class="col-8"><select class="form-control form-control-sm any-select" id="Any_P${p}" onchange="updateDashboard()">${buildDeptOptions()}</select></div>
+                    <div class="col-8"><select class="form-control form-control-sm any-select" id="Any_P${p}" onchange="updateDashboard()">${buildDeptOptionsForAny()}</select></div>
                 </div>`;
         }
         document.getElementById("any-fields-container").innerHTML = anyHtml;
 
         let slotHtml = "";
-        serverSlots.forEach(slot => {
+        // ★ 変更点: 引数に idx (スロットの順番 0〜15) を追加
+        serverSlots.forEach((slot, sIdx) => { 
             slotHtml += `
                 <div class="border p-2 mb-2 rounded bg-light">
                     <span class="badge badge-dark mb-1">${slot}</span>
                     <div class="form-group row mb-1 align-items-center">
                         <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(P1):</label>
-                        <div class="col-8"><select class="form-control form-control-sm slot-p1" id="${slot}_P1" onchange="updateDashboard()">${buildDeptOptions()}</select></div>
+                        <div class="col-8"><select class="form-control form-control-sm slot-p1" id="${slot}_P1" onchange="updateDashboard()">${buildDeptOptionsSlot(sIdx)}</select></div>
                     </div>`;
             for(let p=2; p<=5; p++) {
                 slotHtml += `
                     <div class="form-group row mb-1 align-items-center">
                         <label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(P${p}):</label>
-                        <div class="col-8"><select class="form-control form-control-sm" id="${slot}_P${p}">${buildDeptOptions()}</select></div>
+                        <div class="col-8"><select class="form-control form-control-sm" id="${slot}_P${p}">${buildDeptOptionsSlot(sIdx)}</select></div>
                     </div>`;
             }
             slotHtml += `</div>`;
@@ -203,14 +215,29 @@
         document.getElementById("slot-fields-container").innerHTML = slotHtml;
     }
 
-    function buildDeptOptions() {
+    // ★ 新設: 一般枠用（定員が0より大きい講座だけをセレクトボックスに並べる）
+    function buildDeptOptionsSlot(sIdx) {
         let options = '<option value="">-- 選択してください --</option>';
         serverDepartments.forEach(d => {
-              options += `<option value="${d.id}">${d.name} (倍率:${d.ratio})</option>`;
+            // GASから届いた slotCapacities の中から、該当スロットの定員を取得
+            const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
+            
+            // 定員が0より大きい場合のみ、選択肢として追加する
+            if (capacity > 0) {
+                options += `<option value="${d.id}">${d.name} (倍率:${d.ratio})</option>`;
+            }
         });
         return options;
     }
 
+    // ★ 新設: Any枠用（Any枠は全クール対象のため、今まで通りすべての講座を並べる）
+    function buildDeptOptionsForAny() {
+        let options = '<option value="">-- 選択してください --</option>';
+        serverDepartments.forEach(d => {
+             options += `<option value="${d.id}">${d.name} (倍率:${d.ratio})</option>`;
+        });
+        return options;
+    }
     function applyFormValues(data) {
         for(let p=1; p<=4; p++) {
             if(data[`Any_P${p}`]) document.getElementById(`Any_P${p}`).value = data[`Any_P${p}`];
