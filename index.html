@@ -24,7 +24,7 @@
 
 <div class="fixed-header">
     <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">
-        臨床実習 希望調査システム <span class="badge badge-info">ver1.31</span>
+        臨床実習 希望調査システム <span class="badge badge-info">ver1.32</span>
     </div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">
         ログイン中：学籍番号 <span id="current-sid"></span> さん
@@ -187,35 +187,26 @@
             });
     }
 
-    // 各セレクトボックスの選択肢（optionタグ）を、4W縛りを判定しつつ動的に構築する関数
+    // 1. 選択肢構築ロジックを強化
     function buildDeptOptionsSlot(slot, pNum) {
-        let options = '<option value="">-- 選択してください --</option>';
         const sIdx = serverSlots.indexOf(slot);
-
-        // 相方スロット（前半⇔後半）の特定
-        let partnerSlot = "";
-        if (slot.includes("前半")) {
-            partnerSlot = slot.replace("前半", "後半");
-        } else if (slot.includes("後半")) {
-            partnerSlot = slot.replace("後半", "前半");
-        }
-
-        // 相方スロットで、該当の希望順位(pNum)に何が選ばれているかをチェック
+        
+        // 相方スロットの特定
+        let partnerSlot = slot.includes("前半") ? slot.replace("前半", "後半") : slot.replace("後半", "前半");
         let partnerEl = document.getElementById(`${partnerSlot}p${pNum}`);
         let partnerVal = partnerEl ? partnerEl.value : "";
         let partnerDept = serverDepartments.find(d => d.id == partnerVal);
 
-        // 【4W縛り】相方で「4W」の講座がすでに選ばれているなら、選択肢をその1つだけに強制制限
+        // 【ロック処理】相方で4Wが選ばれている場合
         if (partnerDept && partnerDept.type === "4W") {
-            options += `<option value="${partnerDept.id}">${partnerDept.name} (${partnerDept.type})</option>`;
-            return options;
+            // 選択肢をその4W講座1つに限定して返す
+            return `<option value="${partnerDept.id}" selected>${partnerDept.name} (4W固定)</option>`;
         }
 
-        // 相方が4Wではない（通常講座、または未選択）なら、そのクールで開講している全講座をリストアップ
+        // 通常時
+        let options = '<option value="">-- 選択してください --</option>';
         serverDepartments.forEach(d => {
-            if (d.name.includes("Capaci") || d.name.includes("Type") || d.id.toString().includes("CID")) {
-                return; 
-            }
+            if (d.name.includes("Capaci") || d.name.includes("Type") || d.id.toString().includes("CID")) return;
             
             const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
             if (capacity > 0) {
@@ -224,6 +215,30 @@
             }
         });
         return options;
+    }
+
+    // 2. 選択時に相方も含めて強制リフレッシュする関数
+    function refreshAllSlotOptions() {
+        // 全スロットをループして再描画
+        serverSlots.forEach(slot => {
+            for (let p = 1; p <= 8; p++) {
+                let el = document.getElementById(`${slot}p${p}`);
+                if (!el) continue;
+
+                let currentVal = el.value;
+                let newOptions = buildDeptOptionsSlot(slot, p);
+                
+                // 選択肢を更新
+                el.innerHTML = newOptions;
+
+                // 値の整合性チェック：4Wで固定された場合、値が消えるのを防ぐ
+                if (newOptions.includes(`value="${currentVal}"`)) {
+                    el.value = currentVal;
+                } else {
+                    el.value = ""; // 選択肢から消えたら空にする
+                }
+            }
+        });
     }
 
     // 全スロットの全希望（p1〜p8）の選択肢を、最新の選択状態をもとに再構築・更新する関数
@@ -282,7 +297,7 @@
                     <div class="form-group row mb-1 align-items-center">
                         <label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(p${p}):</label>
                         <div class="col-8">
-                            <select class="form-control form-control-sm" id="${slot}p${p}" onchange="refreshAllSlotOptions();">
+                            <select class="form-control form-control-sm" id="${slot}p${p}" onchange="refreshAllSlotOptions(); updateDashboard();">
                                 ${buildDeptOptionsSlot(slot, p)}
                             </select>
                         </div>
