@@ -219,16 +219,32 @@
         const catNames = ["", "内科", "外科", "マイナー", "その他"];
 
         serverDepartments.forEach(d => {
-            // 除外対象のスキップ
-            if (d.name.includes("Capaci") || d.name.includes("Type") || d.id.toString().includes("CID")) return;
-            
             const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
-            if (capacity > 0) {
-                const cat = getCategory(d.id);
-                const label = `[${catNames[cat]}] ${d.name}`; // 分類付きラベル
-                options += `<option value="${d.id}">${label}</option>`;
-            }
-        });
+    
+    if (capacity > 0) {
+        const cat = getCategory(d.id);
+        const catLabel = (cat >= 0 && cat < catNames.length) ? catNames[cat] : "その他";
+        
+        // ★倍率データの取得
+        // serverRatios.Slots はスロット名(例: "1クールp1")をキーにしているため、
+        // スロット名を使って現在の倍率を取得します
+        const slotKey = `${slot}p${pNum}`;
+        const ratio = serverRatios.Slots[slotKey] || 0.0;
+        
+        // ★倍率に基づく視覚的なラベル生成
+        let statusIcon = "";
+        if (ratio < 1.0) {
+            statusIcon = "🟢"; // 1未満：緑（安全）
+        } else if (ratio < 2.0) {
+            statusIcon = "🟡"; // 1以上2未満：黄（混雑）
+        } else {
+            statusIcon = "🔴"; // 2以上：赤（高倍率）
+        }
+        
+        const label = `${statusIcon} [${catLabel}] ${d.name} (${ratio.toFixed(1)}倍)`;
+        options += `<option value="${d.id}">${label}</option>`;
+    }
+});
         return options;
     }
 
@@ -272,7 +288,18 @@ function updatePairSlot(slot, p) {
     }
     function buildFormFields() {
     let anyHtml = "";
-    // ... Any枠の処理 ...
+    let anyHtml = "";
+    for (let i = 1; i <= 4; i++) {
+        anyHtml += `
+            <div class="form-group row mb-2">
+                <label class="col-4 col-form-label font-weight-bold">Any${i}:</label>
+                <div class="col-8">
+                    <select class="form-control" id="Any${i}" onchange="updateDashboard()">
+                        <option value="">-- 選択してください --</option>
+                    </select>
+                </div>
+            </div>`;
+    }
     document.getElementById("any-fields-container").innerHTML = anyHtml;
 
     // ★ここで slotHtml を初期化してください
