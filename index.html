@@ -24,7 +24,7 @@
 
 <div class="fixed-header">
     <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">
-        臨床実習 希望調査システム <span class="badge badge-info">ver1.34</span>
+        臨床実習 希望調査システム <span class="badge badge-info">ver1.35</span>
     </div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">
         ログイン中：学籍番号 <span id="current-sid"></span> さん
@@ -105,7 +105,6 @@
 
         <div class="tab-pane fade" id="history" role="tabpanel">
             <div class="alert alert-info py-2 px-3 text-center" style="font-size:0.8rem;">
-                ※一番日時の新しいデータのみが有効票として集計されます。
             </div>
             <div id="history-container">
                 <p class="text-muted text-center">履歴はありません。</p>
@@ -175,15 +174,13 @@
 
                     document.getElementById("login-info").style.display = "block";
                     document.getElementById("current-sid").innerText = latest.student_id;
-                    
-                    // 過去の希望値を反映
+
                     applyFormValues(latest);
 
                     document.getElementById("status-alert").className = "alert alert-success text-center font-weight-bold";
                     document.getElementById("status-alert").innerHTML = "🎉 希望調査は提出済みです（変更可能）";
                 }
                 
-                // 初回読み込み時の選択状況ベースで選択肢の絞り込みを適用
                 updateAnyOptions(); 
                 updateDashboard();
             })
@@ -192,7 +189,6 @@
             });
     }
 
-    // 1. 選択肢構築ロジックを強化
     function getCategory(cid) {
         const s = cid.toString();
         if (s.startsWith('1')) return 1;
@@ -202,62 +198,32 @@
     }
 
     function buildDeptOptionsSlot(slot, pNum) {
-        const sIdx = serverSlots.indexOf(slot);
-        
-        // 1. 相方スロットの特定と4W判定（先にやってしまう）
-        let partnerSlot = slot.includes("前半") ? slot.replace("前半", "後半") : slot.replace("後半", "前半");
-        let partnerEl = document.getElementById(`${partnerSlot}p${pNum}`);
-        let partnerVal = partnerEl ? partnerEl.value : "";
-        let partnerDept = serverDepartments.find(d => d.id == partnerVal);
+    const sIdx = serverSlots.indexOf(slot);
+    let options = '<option value="">-- 選択してください --</option>';
+    const catNames = ["", "内科", "外科", "マイナー", "その他"];
 
-        if (partnerDept && partnerDept.type === "4W") {
-            return `<option value="${partnerDept.id}" selected>${partnerDept.name} (4W固定)</option>`;
+    serverDepartments.forEach(d => {
+        const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
+        if (capacity > 0) {
+            const cat = getCategory(d.id);
+            const catLabel = (cat >= 0 && cat < catNames.length) ? catNames[cat] : "その他";
+            const slotKey = `${slot}p${pNum}`;
+            const ratio = serverRatios.Slots[slotKey] || 0.0;
+            let statusIcon = ratio < 1.0 ? "🟢" : (ratio < 2.0 ? "🟡" : "🔴");
+            options += `<option value="${d.id}">${statusIcon} [${catLabel}] ${d.name} (${ratio.toFixed(1)}倍)</option>`;
         }
-
-        // 2. 通常時：リストを構築
-        let options = '<option value="">-- 選択してください --</option>';
-        const catNames = ["", "内科", "外科", "マイナー", "その他"];
-
-        serverDepartments.forEach(d => {
-            const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
-    
-    if (capacity > 0) {
-        const cat = getCategory(d.id);
-        const catLabel = (cat >= 0 && cat < catNames.length) ? catNames[cat] : "その他";
-        
-        // ★倍率データの取得
-        // serverRatios.Slots はスロット名(例: "1クールp1")をキーにしているため、
-        // スロット名を使って現在の倍率を取得します
-        const slotKey = `${slot}p${pNum}`;
-        const ratio = serverRatios.Slots[slotKey] || 0.0;
-        
-        // ★倍率に基づく視覚的なラベル生成
-        let statusIcon = "";
-        if (ratio < 1.0) {
-            statusIcon = "🟢"; // 1未満：緑（安全）
-        } else if (ratio < 2.0) {
-            statusIcon = "🟡"; // 1以上2未満：黄（混雑）
-        } else {
-            statusIcon = "🔴"; // 2以上：赤（高倍率）
-        }
-        
-        const label = `${statusIcon} [${catLabel}] ${d.name} (${ratio.toFixed(1)}倍)`;
-        options += `<option value="${d.id}">${label}</option>`;
-    }
-});
-        return options;
-    }
+    });
+    return options;
+}
 
 function updatePairSlot(slot, p) {
     let myEl = document.getElementById(`${slot}p${p}`);
     let myVal = myEl.value;
     
-    // 相方のスロット名を特定
     let partnerSlot = slot.includes("前半") ? slot.replace("前半", "後半") : slot.replace("後半", "前半");
     let partnerEl = document.getElementById(`${partnerSlot}p${p}`);
 
     if (partnerEl) {
-        // 4W判定：もし自分が4Wなら相方を自分に固定
         let myDept = serverDepartments.find(d => d.id == myVal);
         
         if (myDept && myDept.type === "4W") {
@@ -269,26 +235,26 @@ function updatePairSlot(slot, p) {
     }
 }
     function handle4WLock(slot, p) {
-        let myEl = document.getElementById(`${slot}p${p}`);
-        let partnerSlot = slot.includes("前半") ? slot.replace("前半", "後半") : slot.replace("後半", "前半");
-        let partnerEl = document.getElementById(`${partnerSlot}p${p}`);
-
-        if (!partnerEl || !myEl) return;
-
-        let dept = serverDepartments.find(d => d.id == myEl.value);
+    let myEl = document.getElementById(`${slot}p${p}`);
+    if (!myEl) return;
     
-        if (dept && dept.type === "4W") {
-            partnerEl.value = myEl.value;
-            partnerEl.disabled = true;
-        } else {
-            partnerEl.disabled = false;
-        }
-        // 他の処理（updateDashboardなど）が確実に動くようにイベントを発火
-        partnerEl.dispatchEvent(new Event('change'));
+    let partnerSlot = slot.includes("前半") ? slot.replace("前半", "後半") : slot.replace("後半", "前半");
+    let partnerEl = document.getElementById(`${partnerSlot}p${p}`);
+    if (!partnerEl) return;
+
+    let myDept = serverDepartments.find(d => d.id == myEl.value);
+    
+    // 4W判定（サーバーのデータを参照）
+    if (myDept && myDept.type === "4W") {
+        partnerEl.value = myEl.value; // 値を同期
+        partnerEl.disabled = true;    // 操作不可にする
+    } else {
+        partnerEl.disabled = false;   // 解除
     }
+    updateDashboard(); // 最後にダッシュボードを更新
+}
     function buildFormFields() {
-    let anyHtml = "";
-    let anyHtml = "";
+    let anyHtml = ""; // 宣言は1回に修正
     for (let i = 1; i <= 4; i++) {
         anyHtml += `
             <div class="form-group row mb-2">
@@ -302,10 +268,8 @@ function updatePairSlot(slot, p) {
     }
     document.getElementById("any-fields-container").innerHTML = anyHtml;
 
-    // ★ここで slotHtml を初期化してください
     let slotHtml = ""; 
     serverSlots.forEach(slot => {
-        // ここからループ開始
         slotHtml += `
             <div class="border p-2 mb-2 rounded bg-light">
                 <span class="badge badge-dark mb-1">${slot}</span>
@@ -313,7 +277,7 @@ function updatePairSlot(slot, p) {
                     <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(p1):</label>
                     <div class="col-8">
                         <select class="form-control form-control-sm slot-p1" id="${slot}p1" 
-                                onchange="updatePairSlot('${slot}', 1); updateAnyOptions(); updateDashboard(); handle4WLock('${slot}', 1);">
+                                onchange="handle4WLock('${slot}', 1); updateAnyOptions(); updateDashboard();">
                             ${buildDeptOptionsSlot(slot, 1)}
                         </select>
                     </div>
@@ -325,13 +289,13 @@ function updatePairSlot(slot, p) {
                     <label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(p${p}):</label>
                     <div class="col-8">
                         <select class="form-control form-control-sm" id="${slot}p${p}" 
-                                onchange="updatePairSlot('${slot}', ${p}); updateDashboard(); handle4WLock('${slot}', ${p});">
+                                onchange="handle4WLock('${slot}', ${p}); updateDashboard();">
                             ${buildDeptOptionsSlot(slot, p)}
                         </select>
                     </div>
                 </div>`;
         }
-        slotHtml += `</div>`; // 1スロット分閉じる
+        slotHtml += `</div>`; 
     });
     document.getElementById("slot-fields-container").innerHTML = slotHtml;
 }
@@ -358,7 +322,6 @@ function updatePairSlot(slot, p) {
         let dept = serverDepartments.find(d => d.id == val);
         let name = dept ? dept.name : '<span class="text-muted">未選択</span>';
         
-        // ★修正: サーバーから届いた倍率を使用
         let ratio = serverRatios.Slots[`${slot}p1`] || 0;
         let ratioStr = val ? ` [倍率: ${ratio}]` : "";
         
@@ -384,7 +347,6 @@ function updatePairSlot(slot, p) {
         let dept = serverDepartments.find(d => d.id == val);
         if (!dept) return;
 
-        // ★修正: サーバーから届いたAny倍率を使用
         let ratio = serverRatios.Any[key] || 0;
 
         let badge = "";
