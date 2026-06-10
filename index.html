@@ -24,7 +24,7 @@
 
 <div class="fixed-header">
     <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">
-        臨床実習 希望調査システム <span class="badge badge-info">ver1.36</span>
+        臨床実習 希望調査システム <span class="badge badge-info">ver1.37</span>
     </div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">
         ログイン中：学籍番号 <span id="current-sid"></span> さん
@@ -159,14 +159,14 @@
                 serverSlots = data.slots;
                 serverAnyCounts = data.anyCounts || { Any1:{}, Any2:{}, Any3:{}, Any4:{} };
                 serverRatios = data.ratios;
-                
+
                 buildFormFields();
                 renderHistory(data.history);
-                
+
                 if(data.history && data.history.length > 0) {
                     const latest = data.history[0];
                     const sidInput = document.getElementById("student_id");
-                    
+
                     sidInput.value = latest.student_id;
                     sidInput.disabled = true;
                     sidInput.classList.add("bg-secondary", "text-white");
@@ -175,12 +175,12 @@
                     document.getElementById("login-info").style.display = "block";
                     document.getElementById("current-sid").innerText = latest.student_id;
 
-                    refreshFormControls(); 
+                    applyFormValues(latest);
 
-                    document.getElementById("status-alert").className = "alert alert-success ...";
+                    document.getElementById("status-alert").className = "alert alert-success text-center font-weight-bold";
                     document.getElementById("status-alert").innerHTML = "🎉 希望調査は提出済みです（変更可能）";
                 }
-                
+
                 updateAnyOptions(); 
                 updateDashboard();
             })
@@ -219,13 +219,13 @@
 function updatePairSlot(slot, p) {
     let myEl = document.getElementById(`${slot}p${p}`);
     let myVal = myEl.value;
-    
+
     let partnerSlot = slot.includes("前半") ? slot.replace("前半", "後半") : slot.replace("後半", "前半");
     let partnerEl = document.getElementById(`${partnerSlot}p${p}`);
 
     if (partnerEl) {
         let myDept = serverDepartments.find(d => d.id == myVal);
-        
+
         if (myDept && myDept.type === "4W") {
             partnerEl.value = myVal;
             partnerEl.disabled = true; // 固定して操作不可にする
@@ -237,24 +237,20 @@ function updatePairSlot(slot, p) {
     function handle4WLock(slot, p) {
     let myEl = document.getElementById(`${slot}p${p}`);
     if (!myEl) return;
-    
+
     let partnerSlot = slot.includes("前半") ? slot.replace("前半", "後半") : slot.replace("後半", "前半");
     let partnerEl = document.getElementById(`${partnerSlot}p${p}`);
     if (!partnerEl) return;
 
     let myDept = serverDepartments.find(d => d.id == myEl.value);
-    
+
+    // 4W判定（サーバーのデータを参照）
     if (myDept && myDept.type === "4W") {
         partnerEl.value = myEl.value; // 値を同期
         partnerEl.disabled = true;    // 操作不可にする
     } else {
         partnerEl.disabled = false;   // 解除
     }
-
-    // --- ここから追加 ---
-    refreshFormControls(); // 各プルダウンの選択肢を再評価して無効化する
-    // --- ここまで追加 ---
-
     updateDashboard(); // 最後にダッシュボードを更新
 }
     function buildFormFields() {
@@ -281,19 +277,19 @@ function updatePairSlot(slot, p) {
                     <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(p1):</label>
                     <div class="col-8">
                         <select class="form-control form-control-sm slot-p1" id="${slot}p1" 
-                                onchange="handle4WLock('${slot}', 1); refreshFormControls(); updateDashboard();"
+                                onchange="handle4WLock('${slot}', 1); updateAnyOptions(); updateDashboard();">
                             ${buildDeptOptionsSlot(slot, 1)}
                         </select>
                     </div>
                 </div>`;
-        
+
         for(let p=2; p<=8; p++) {
             slotHtml += `
                 <div class="form-group row mb-1 align-items-center">
                     <label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(p${p}):</label>
                     <div class="col-8">
                         <select class="form-control form-control-sm" id="${slot}p${p}" 
-                                onchange="handle4WLock('${slot}', ${p}); refreshFormControls(); updateDashboard();"
+                                onchange="handle4WLock('${slot}', ${p}); updateDashboard();">
                             ${buildDeptOptionsSlot(slot, p)}
                         </select>
                     </div>
@@ -325,10 +321,10 @@ function updatePairSlot(slot, p) {
         let val = el ? el.value : "";
         let dept = serverDepartments.find(d => d.id == val);
         let name = dept ? dept.name : '<span class="text-muted">未選択</span>';
-        
+
         let ratio = serverRatios.Slots[`${slot}p1`] || 0;
         let ratioStr = val ? ` [倍率: ${ratio}]` : "";
-        
+
         calHtml += `
             <div class="timeline-item">
                 <div class="font-weight-bold" style="font-size:0.85rem;">${slot}クール</div>
@@ -423,41 +419,10 @@ function updatePairSlot(slot, p) {
         }
     }
 
-    function refreshFormControls() {
-    const allSelects = document.querySelectorAll('select.form-control');
-    let selectedInSlot = {}; // スロットごとの選択済みを保持
-    let selectedP1 = [];     // 全スロットのp1選択済みを保持（Any枠用）
-
-    // 1. 現在の選択状況を収集
-    allSelects.forEach(s => {
-        const match = s.id.match(/(.+)p(\d+)/);
-        if (!match) return; // Any枠などは除外
-        if (!selectedInSlot[match[1]]) selectedInSlot[match[1]] = [];
-        if (s.value) {
-            selectedInSlot[match[1]].push(s.value);
-            if (s.id.endsWith('p1')) selectedP1.push(s.value);
-        }
-    });
-
-    // 2. 各プルダウンの選択肢を無効化（disabled）
-    allSelects.forEach(s => {
-        const match = s.id.match(/(.+)p(\d+)/);
-        if (!match) return;
-        const isP1 = s.id.endsWith('p1');
-        
-        Array.from(s.options).forEach(opt => {
-            if (!opt.value) return; // 空選択肢は無効化しない
-            // 同じスロット内での重複 or p1の重複を判定
-            const inSameSlot = selectedInSlot[match[1]].includes(opt.value) && opt.value !== s.value;
-            const inOtherP1 = !isP1 && selectedP1.includes(opt.value);
-            opt.disabled = inSameSlot || inOtherP1;
-        });
-    });
-}
     function submitData() {
         const sidInput = document.getElementById("student_id");
         const studentId = sidInput.value.trim();
-        
+
         if(!/^\d{6}$/.test(studentId)) {
             alert("エラー：学籍番号は必ず「半角数字6桁」で入力してください。");
             return;
@@ -514,11 +479,11 @@ function updatePairSlot(slot, p) {
             if (!slot.includes("前半")) continue;
 
             let partnerSlot = slot.replace("前半", "後半");
-            
+
             for (let p = 1; p <= 8; p++) {
                 let val1 = document.getElementById(`${slot}p${p}`) ? document.getElementById(`${slot}p${p}`).value : "";
                 let val2 = document.getElementById(`${partnerSlot}p${p}`) ? document.getElementById(`${partnerSlot}p${p}`).value : "";
-                
+
                 let dept1 = serverDepartments.find(d => d.id == val1);
                 let dept2 = serverDepartments.find(d => d.id == val2);
 
@@ -532,11 +497,11 @@ function updatePairSlot(slot, p) {
         }
 
         let payload = { line_uid: liffUser.uid, student_id: studentId };
-        
+
         for(let p=1; p<=4; p++) { 
             payload[`Any${p}`] = document.getElementById(`Any${p}`).value; 
         }
-        
+
         serverSlots.forEach(slot => {
             for(let p=1; p<=8; p++) { 
                 let key = `${slot}p${p}`;
