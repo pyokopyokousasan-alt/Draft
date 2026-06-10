@@ -68,10 +68,10 @@
                 <div id="collapseRules" class="collapse show" data-parent="#form">
                     <div class="card-body p-2 text-danger font-weight-bold" style="font-size:0.8rem; background-color:#fffdf6;">
                         <ul class="pl-3 mb-0">
-                            <li>Any枠内（Any1〜Any4）で、同じ講座を重複して選択することはできません。また、第一希望から選んでください。</li>
-                            <li>4週間枠（4W）の講座を選択した場合、対応する前半/後半クールの同じ希望順位は、自動的にその講座に固定されます。</li>
-                            <li>倍率は全提出者のデータに基づくリアルタイム集計です。提出するまでご自身の希望は反映されていません。</li>
-                            <li>なりすまし防止のため、1つのLINEアカウントにつき1つの学籍番号のみ提出可能です。誤りがあれば宮崎まで連絡してください。</li>
+                            <li>Any枠内（Any1〜Any4）重複選択不可。第一希望からのみ選択可能。</li>
+                            <li>倍率は「提出者のデータ」に基づく集計です。提出するまでご自身の希望は反映されていません。</li>
+                            <li>なりすまし防止のため、LINEアカウントにつき1つの学籍番号のみ提出可能です。間違ったら宮崎まで連絡してください。</li>
+                            <li>内科2以上、外科1以上、マイナー1から3、の条件を満たしていないと提出できません。</li>
                         </ul>
                     </div>
                 </div>
@@ -184,7 +184,6 @@
                 }
                 
                 // 初回読み込み時の選択状況ベースで選択肢の絞り込みを適用
-                refreshAllSlotOptions();
                 updateAnyOptions(); 
                 updateDashboard();
             })
@@ -233,75 +232,82 @@
         return options;
     }
 
-    // 2. 選択時に相方も含めて強制リフレッシュする関数
-    function refreshAllSlotOptions() {
-        // 全スロットをループして再描画
-        serverSlots.forEach(slot => {
-            for (let p = 1; p <= 8; p++) {
-                let el = document.getElementById(`${slot}p${p}`);
-                if (!el) continue;
+function updatePairSlot(slot, p) {
+    let myEl = document.getElementById(`${slot}p${p}`);
+    let myVal = myEl.value;
+    
+    // 相方のスロット名を特定
+    let partnerSlot = slot.includes("前半") ? slot.replace("前半", "後半") : slot.replace("後半", "前半");
+    let partnerEl = document.getElementById(`${partnerSlot}p${p}`);
 
-                let currentVal = el.value;
-                let newOptions = buildDeptOptionsSlot(slot, p);
-                
-                // 選択肢を更新
-                el.innerHTML = newOptions;
-
-                // 値の整合性チェック：4Wで固定された場合、値が消えるのを防ぐ
-                if (newOptions.includes(`value="${currentVal}"`)) {
-                    el.value = currentVal;
-                } else {
-                    el.value = ""; // 選択肢から消えたら空にする
-                }
-            }
-        });
+    if (partnerEl) {
+        // 4W判定：もし自分が4Wなら相方を自分に固定
+        let myDept = serverDepartments.find(d => d.id == myVal);
+        
+        if (myDept && myDept.type === "4W") {
+            partnerEl.value = myVal;
+            partnerEl.disabled = true; // 固定して操作不可にする
+        } else {
+            partnerEl.disabled = false; // 4Wじゃなければ自由に戻す
+        }
     }
+}
+    function handle4WLock(slot, p) {
+        let myEl = document.getElementById(`${slot}p${p}`);
+        let partnerSlot = slot.includes("前半") ? slot.replace("前半", "後半") : slot.replace("後半", "前半");
+        let partnerEl = document.getElementById(`${partnerSlot}p${p}`);
 
+        if (!partnerEl || !myEl) return;
 
+        let dept = serverDepartments.find(d => d.id == myEl.value);
+    
+        if (dept && dept.type === "4W") {
+            partnerEl.value = myEl.value;
+            partnerEl.disabled = true;
+        } else {
+            partnerEl.disabled = false;
+        }
+        // 他の処理（updateDashboardなど）が確実に動くようにイベントを発火
+        partnerEl.dispatchEvent(new Event('change'));
+    }
     function buildFormFields() {
-        let anyHtml = "";
-        for(let p=1; p<=4; p++) {
-            anyHtml += `
-                <div class="form-group row mb-2 align-items-center">
-                    <label class="col-4 font-weight-bold mb-0 pr-0">Any枠 ${p}:</label>
+    let anyHtml = "";
+    // ... Any枠の処理 ...
+    document.getElementById("any-fields-container").innerHTML = anyHtml;
+
+    // ★ここで slotHtml を初期化してください
+    let slotHtml = ""; 
+    serverSlots.forEach(slot => {
+        // ここからループ開始
+        slotHtml += `
+            <div class="border p-2 mb-2 rounded bg-light">
+                <span class="badge badge-dark mb-1">${slot}</span>
+                <div class="form-group row mb-1 align-items-center">
+                    <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(p1):</label>
                     <div class="col-8">
-                        <select class="form-control form-control-sm any-select" id="Any${p}" onchange="updateDashboard()">
-                            <option value="">-- 先に第1希望を選んでください --</option>
+                        <select class="form-control form-control-sm slot-p1" id="${slot}p1" 
+                                onchange="updatePairSlot('${slot}', 1); updateAnyOptions(); updateDashboard(); handle4WLock('${slot}', 1);">
+                            ${buildDeptOptionsSlot(slot, 1)}
+                        </select>
+                    </div>
+                </div>`;
+        
+        for(let p=2; p<=8; p++) {
+            slotHtml += `
+                <div class="form-group row mb-1 align-items-center">
+                    <label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(p${p}):</label>
+                    <div class="col-8">
+                        <select class="form-control form-control-sm" id="${slot}p${p}" 
+                                onchange="updatePairSlot('${slot}', ${p}); updateDashboard(); handle4WLock('${slot}', ${p});">
+                            ${buildDeptOptionsSlot(slot, p)}
                         </select>
                     </div>
                 </div>`;
         }
-        document.getElementById("any-fields-container").innerHTML = anyHtml;
-
-        let slotHtml = "";
-        serverSlots.forEach((slot) => { 
-            slotHtml += `
-                <div class="border p-2 mb-2 rounded bg-light">
-                    <span class="badge badge-dark mb-1">${slot}</span>
-                    <div class="form-group row mb-1 align-items-center">
-                        <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(p1):</label>
-                        <div class="col-8">
-                            <select class="form-control form-control-sm slot-p1" id="${slot}p1" onchange="refreshAllSlotOptions(); updateAnyOptions(); updateDashboard();">
-                                ${buildDeptOptionsSlot(slot, 1)}
-                            </select>
-                        </div>
-                    </div>`;
-            
-            for(let p=2; p<=8; p++) {
-                slotHtml += `
-                    <div class="form-group row mb-1 align-items-center">
-                        <label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(p${p}):</label>
-                        <div class="col-8">
-                            <select class="form-control form-control-sm" id="${slot}p${p}" onchange="refreshAllSlotOptions(); updateDashboard();">
-                                ${buildDeptOptionsSlot(slot, p)}
-                            </select>
-                        </div>
-                    </div>`;
-            }
-            slotHtml += `</div>`;
-        });
-        document.getElementById("slot-fields-container").innerHTML = slotHtml;
-    }
+        slotHtml += `</div>`; // 1スロット分閉じる
+    });
+    document.getElementById("slot-fields-container").innerHTML = slotHtml;
+}
 
     function applyFormValues(data) {
         for(let p=1; p<=4; p++) {
