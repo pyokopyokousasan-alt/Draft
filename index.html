@@ -175,9 +175,9 @@
                     document.getElementById("login-info").style.display = "block";
                     document.getElementById("current-sid").innerText = latest.student_id;
 
-                    applyFormValues(latest);
+                    refreshFormControls(); 
 
-                    document.getElementById("status-alert").className = "alert alert-success text-center font-weight-bold";
+                    document.getElementById("status-alert").className = "alert alert-success ...";
                     document.getElementById("status-alert").innerHTML = "🎉 希望調査は提出済みです（変更可能）";
                 }
                 
@@ -244,13 +244,17 @@ function updatePairSlot(slot, p) {
 
     let myDept = serverDepartments.find(d => d.id == myEl.value);
     
-    // 4W判定（サーバーのデータを参照）
     if (myDept && myDept.type === "4W") {
         partnerEl.value = myEl.value; // 値を同期
         partnerEl.disabled = true;    // 操作不可にする
     } else {
         partnerEl.disabled = false;   // 解除
     }
+
+    // --- ここから追加 ---
+    refreshFormControls(); // 各プルダウンの選択肢を再評価して無効化する
+    // --- ここまで追加 ---
+
     updateDashboard(); // 最後にダッシュボードを更新
 }
     function buildFormFields() {
@@ -277,7 +281,7 @@ function updatePairSlot(slot, p) {
                     <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(p1):</label>
                     <div class="col-8">
                         <select class="form-control form-control-sm slot-p1" id="${slot}p1" 
-                                onchange="handle4WLock('${slot}', 1); updateAnyOptions(); updateDashboard();">
+                                onchange="handle4WLock('${slot}', 1); refreshFormControls(); updateDashboard();"
                             ${buildDeptOptionsSlot(slot, 1)}
                         </select>
                     </div>
@@ -289,7 +293,7 @@ function updatePairSlot(slot, p) {
                     <label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(p${p}):</label>
                     <div class="col-8">
                         <select class="form-control form-control-sm" id="${slot}p${p}" 
-                                onchange="handle4WLock('${slot}', ${p}); updateDashboard();">
+                                onchange="handle4WLock('${slot}', ${p}); refreshFormControls(); updateDashboard();"
                             ${buildDeptOptionsSlot(slot, p)}
                         </select>
                     </div>
@@ -419,6 +423,37 @@ function updatePairSlot(slot, p) {
         }
     }
 
+    function refreshFormControls() {
+    const allSelects = document.querySelectorAll('select.form-control');
+    let selectedInSlot = {}; // スロットごとの選択済みを保持
+    let selectedP1 = [];     // 全スロットのp1選択済みを保持（Any枠用）
+
+    // 1. 現在の選択状況を収集
+    allSelects.forEach(s => {
+        const match = s.id.match(/(.+)p(\d+)/);
+        if (!match) return; // Any枠などは除外
+        if (!selectedInSlot[match[1]]) selectedInSlot[match[1]] = [];
+        if (s.value) {
+            selectedInSlot[match[1]].push(s.value);
+            if (s.id.endsWith('p1')) selectedP1.push(s.value);
+        }
+    });
+
+    // 2. 各プルダウンの選択肢を無効化（disabled）
+    allSelects.forEach(s => {
+        const match = s.id.match(/(.+)p(\d+)/);
+        if (!match) return;
+        const isP1 = s.id.endsWith('p1');
+        
+        Array.from(s.options).forEach(opt => {
+            if (!opt.value) return; // 空選択肢は無効化しない
+            // 同じスロット内での重複 or p1の重複を判定
+            const inSameSlot = selectedInSlot[match[1]].includes(opt.value) && opt.value !== s.value;
+            const inOtherP1 = !isP1 && selectedP1.includes(opt.value);
+            opt.disabled = inSameSlot || inOtherP1;
+        });
+    });
+}
     function submitData() {
         const sidInput = document.getElementById("student_id");
         const studentId = sidInput.value.trim();
