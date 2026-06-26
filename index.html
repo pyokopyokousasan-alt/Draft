@@ -228,14 +228,18 @@ options += `<option value="${d.id}">
     const myEl = document.getElementById(`${slot}p${p}`);
     if (!myEl) return;
 
+    console.log("選択値:", myEl.value);
+
+    const dept = serverDepartments.find(d => d.id == myEl.value);
+
+    console.log("講座:", dept);
+
     const partnerSlot = slot.includes("前半")
         ? slot.replace("前半","後半")
         : slot.replace("後半","前半");
 
     const partnerEl = document.getElementById(`${partnerSlot}p${p}`);
     if (!partnerEl) return;
-
-    const dept = serverDepartments.find(d => d.id == myEl.value);
 
     if (dept && dept.type === "4W") {
 
