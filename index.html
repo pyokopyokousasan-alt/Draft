@@ -223,43 +223,36 @@ options += `<option value="${d.id}">
     });
     return options;
 }
-
-function updatePairSlot(slot, p) {
-    let myEl = document.getElementById(`${slot}p${p}`);
-    let myVal = myEl.value;
-
-    let partnerSlot = slot.includes("前半") ? slot.replace("前半", "後半") : slot.replace("後半", "前半");
-    let partnerEl = document.getElementById(`${partnerSlot}p${p}`);
-
-    if (partnerEl) {
-        let myDept = serverDepartments.find(d => d.id == myVal);
-
-        if (myDept && myDept.type === "4W") {
-            partnerEl.value = myVal;
-            partnerEl.disabled = true; // 固定して操作不可にする
-        } else {
-            partnerEl.disabled = false; // 4Wじゃなければ自由に戻す
-        }
-    }
-}
     function handle4WLock(slot, p) {
-    let myEl = document.getElementById(`${slot}p${p}`);
+
+    const myEl = document.getElementById(`${slot}p${p}`);
     if (!myEl) return;
 
-    let partnerSlot = slot.includes("前半") ? slot.replace("前半", "後半") : slot.replace("後半", "前半");
-    let partnerEl = document.getElementById(`${partnerSlot}p${p}`);
+    const partnerSlot = slot.includes("前半")
+        ? slot.replace("前半","後半")
+        : slot.replace("後半","前半");
+
+    const partnerEl = document.getElementById(`${partnerSlot}p${p}`);
     if (!partnerEl) return;
 
-    let myDept = serverDepartments.find(d => d.id == myEl.value);
+    const dept = serverDepartments.find(d => d.id == myEl.value);
 
-    // 4W判定（サーバーのデータを参照）
-    if (myDept && myDept.type === "4W") {
-        partnerEl.value = myEl.value; // 値を同期
-        partnerEl.disabled = true;    // 操作不可にする
+    if (dept && dept.type === "4W") {
+
+        partnerEl.value = dept.id;
+        partnerEl.disabled = true;
+
     } else {
-        partnerEl.disabled = false;   // 解除
+
+        if (partnerEl.disabled) {
+            partnerEl.value = "";
+        }
+
+        partnerEl.disabled = false;
     }
-    updateDashboard(); // 最後にダッシュボードを更新
+
+    updateAnyOptions();
+    updateDashboard();
 }
     function buildFormFields() {
     let anyHtml = ""; // 宣言は1回に修正
@@ -516,13 +509,20 @@ function updatePairSlot(slot, p) {
         }
 
         serverSlots.forEach(slot => {
-            for(let p=1; p<=8; p++) { 
-                let key = `${slot}p${p}`;
-                if(document.getElementById(key)) {
-                    payload[key] = document.getElementById(key).value; 
-                }
-            }
-        });
+        let used = [];
+
+     for (let p = 1; p <= 8; p++) {
+        let val = document.getElementById(`${slot}p${p}`).value;
+        if (!val) continue;
+
+        if (used.includes(val)) {
+            alert(`${slot}で同じ講座を複数の希望順位に設定しています。`);
+            throw new Error("duplicate");
+        }
+
+        used.push(val);
+    }
+});
 
         if (!confirm("希望データを送信します。よろしいですか？")) return;
 
