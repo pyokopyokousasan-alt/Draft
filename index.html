@@ -501,29 +501,33 @@ options += `<option value="${d.id}">
                 }
             }
         }
-
-        let payload = { line_uid: liffUser.uid, student_id: studentId };
-
-        for(let p=1; p<=4; p++) { 
-            payload[`Any${p}`] = document.getElementById(`Any${p}`).value; 
-        }
-
-        serverSlots.forEach(slot => {
-        let used = [];
-
-     for (let p = 1; p <= 8; p++) {
-        let val = document.getElementById(`${slot}p${p}`).value;
+     for (const slot of serverSlots) {
+    const used = [];
+    for (let p = 1; p <= 8; p++) {
+        const val = document.getElementById(`${slot}p${p}`).value;
         if (!val) continue;
-
         if (used.includes(val)) {
-            alert(`${slot}で同じ講座を複数の希望順位に設定しています。`);
-            throw new Error("duplicate");
+            alert(`${slot}では同じ講座を複数順位に設定できません。`);
+            return;
         }
-
         used.push(val);
     }
-});
+}
+        let payload = {
+    line_uid: liffUser.uid,
+    student_id: studentId
+};
 
+for (let p = 1; p <= 4; p++) {
+    payload[`Any${p}`] = document.getElementById(`Any${p}`).value;
+}
+
+serverSlots.forEach(slot => {
+    for (let p = 1; p <= 8; p++) {
+        payload[`${slot}p${p}`] =
+            document.getElementById(`${slot}p${p}`).value;
+    }
+});
         if (!confirm("希望データを送信します。よろしいですか？")) return;
 
         payload["access_token"] = liff.getAccessToken();     
