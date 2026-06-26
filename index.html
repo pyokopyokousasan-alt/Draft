@@ -209,7 +209,7 @@
             const catLabel = (cat >= 0 && cat < catNames.length) ? catNames[cat] : "その他";
             const slotKey = `${slot}p${pNum}`;
             const ratio = Number(serverRatios.Slots?.[slotKey]?.[d.id] || 0);
-            }
+            
         
 let statusIcon =
     ratio < 1 ? "🟢" :
@@ -331,7 +331,9 @@ function updatePairSlot(slot, p) {
         let name = dept ? dept.name : '<span class="text-muted">未選択</span>';
 
         const slotKey = `${slot}p1`;
-        let ratio = Number(serverRatios.Slots?.[slotKey] || 0);
+        let ratio = Number(
+    serverRatios.Slots?.[slotKey]?.[val] || 0
+);
         let ratioStr = val ? ` [倍率: ${ratio.toFixed(1)}倍]` : "";
 
         calHtml += `
