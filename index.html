@@ -24,7 +24,7 @@
 
 <div class="fixed-header">
     <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">
-        臨床実習 希望調査システム <span class="badge badge-info">ver0.38</span>
+        臨床実習 希望調査システム <span class="badge badge-info">ver0.39</span>
     </div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">
         ログイン中：学籍番号 <span id="current-sid"></span> さん
@@ -208,9 +208,17 @@
             const cat = getCategory(d.id);
             const catLabel = (cat >= 0 && cat < catNames.length) ? catNames[cat] : "その他";
             const slotKey = `${slot}p${pNum}`;
-            const ratio = serverRatios.Slots[slotKey] || 0.0;
-            let statusIcon = ratio < 1.0 ? "🟢" : (ratio < 2.0 ? "🟡" : "🔴");
-            options += `<option value="${d.id}">${statusIcon} [${catLabel}] ${d.name} (${ratio.toFixed(1)}倍)</option>`;
+            const ratio = Number(serverRatios.Slots?.[slotKey]?.[d.id] || 0);
+            }
+        
+let statusIcon =
+    ratio < 1 ? "🟢" :
+    ratio < 2 ? "🟡" :
+    "🔴";
+
+options += `<option value="${d.id}">
+    ${statusIcon} [${catLabel}] ${d.name} (${ratio.toFixed(1)}倍)
+</option>`;
         }
     });
     return options;
@@ -322,8 +330,9 @@ function updatePairSlot(slot, p) {
         let dept = serverDepartments.find(d => d.id == val);
         let name = dept ? dept.name : '<span class="text-muted">未選択</span>';
 
-        let ratio = serverRatios.Slots[`${slot}p1`] || 0;
-        let ratioStr = val ? ` [倍率: ${ratio}]` : "";
+        const slotKey = `${slot}p1`;
+        let ratio = Number(serverRatios.Slots?.[slotKey] || 0);
+        let ratioStr = val ? ` [倍率: ${ratio.toFixed(1)}倍]` : "";
 
         calHtml += `
             <div class="timeline-item">
@@ -346,8 +355,10 @@ function updatePairSlot(slot, p) {
 
         let dept = serverDepartments.find(d => d.id == val);
         if (!dept) return;
-
-        let ratio = serverRatios.Any[key] || 0;
+        
+        let ratio = Number(
+        serverRatios.Any?.[`Any${idx+1}`]?.[val] || 0
+        );
 
         let badge = "";
         if (ratio <= 1.0) badge = `<span class="badge badge-success px-2 py-1">見込み: 高 (安全)</span>`;
