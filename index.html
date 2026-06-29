@@ -142,6 +142,7 @@
                 serverDepartments = data.departments;
                 serverSlots = data.slots;
                 serverRatios = data.ratios;
+                buildFixedSlots();
                 buildFormFields();
                 if(data.history && data.history.length > 0) {
                     const latest = data.history[0];
@@ -162,6 +163,19 @@
         return 4;
     }
 
+    function buildFixedSlots() {
+    let html = "";
+    serverSlots.forEach(slot => {
+        html += `
+            <div class="col-6 mb-2">
+                <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="fixed-${slot}" onchange="maskSlot('${slot}')">
+                    <label class="custom-control-label" for="fixed-${slot}">${slot}</label>
+                </div>
+            </div>`;
+    });
+    document.getElementById("fixed-slots-container").innerHTML = html;
+}
     function buildDeptOptionsSlot(slot, pNum) {
         const sIdx = serverSlots.indexOf(slot);
         let options = '<option value="">-- 選択してください --</option>';
@@ -193,22 +207,51 @@
         document.getElementById("slot-fields-container").innerHTML = slotHtml;
     }
 
+    function maskSlot(slot) {
+    const isChecked = document.getElementById(`fixed-${slot}`).checked;
+    // そのクールの選択肢を全無効化/有効化
+    for (let p = 1; p <= 8; p++) {
+        const el = document.getElementById(`${slot}p${p}`);
+        if (el) {
+            el.disabled = isChecked;
+            if (isChecked) el.value = ""; // 値をリセット
+        }
+    }
+    updateDashboard();
+    }
     function applyFormValues(data) {
-        for(let p=1; p<=4; p++) { if(data[`Any${p}`]) document.getElementById(`Any${p}`).value = data[`Any${p}`]; }
+    for(let p=1; p<=4; p++) { 
+        if(data[`Any${p}`]) document.getElementById(`Any${p}`).value = data[`Any${p}`]; 
+    }
+
+    if (data.fixedStatus) {
         serverSlots.forEach(slot => {
-            for(let p=1; p<=8; p++) {
-                let key = `${slot}p${p}`;
-                if(data[key] && document.getElementById(key)) document.getElementById(key).value = data[key];
+            if (data.fixedStatus[slot] === true || data.fixedStatus[slot] === "true") {
+                const cb = document.getElementById(`fixed-${slot}`);
+                if (cb) {
+                    cb.checked = true;
+                    maskSlot(slot); 
+                }
             }
         });
     }
 
+    serverSlots.forEach(slot => {
+        if (!data.fixedStatus || !data.fixedStatus[slot]) {
+            for(let p=1; p<=8; p++) {
+                let key = `${slot}p${p}`;
+                if(data[key] && document.getElementById(key)) {
+                    document.getElementById(key).value = data[key];
+                }
+            }
+        }
+    });
+}
+
     function updateDashboard() {
-        // Any枠の更新とカレンダー表示のロジック
         serverSlots.forEach(slot => {
             let val = document.getElementById(`${slot}p1`)?.value;
             let dept = serverDepartments.find(d => d.id == val);
-            // ダッシュボード更新処理...
         });
         updateAnyOptions();
     }
@@ -232,20 +275,51 @@
         const studentId = document.getElementById("student_id").value.trim();
         if(!/^\d{6}$/.test(studentId)) { alert("学籍番号を確認してください"); return; }
         
-        // バリデーションチェック
-        // (4W制限ロジックは削除済み)
+        let payload = { 
+            line_uid: liffUser.uid, 
+            student_id: studentId,
+            fixedStatus: {} // どのクールが確定かを入れる箱
+        };
 
-        let payload = { line_uid: liffUser.uid, student_id: studentId };
+        // Any枠の取得
         for (let p = 1; p <= 4; p++) payload[`Any${p}`] = document.getElementById(`Any${p}`).value;
+
+        // スロットごとの処理
         serverSlots.forEach(slot => {
-            for (let p = 1; p <= 8; p++) payload[`${slot}p${p}`] = document.getElementById(`${slot}p${p}`).value;
+            const isFixed = document.getElementById(`fixed-${slot}`).checked;
+            payload.fixedStatus[slot] = isFixed; // 確定状態を記録
+
+            if (isFixed) {
+                // 確定クールは"FIXED"としてマーク（サーバー側でCID:4として扱う）
+                for (let p = 1; p <= 8; p++) payload[`${slot}p${p}`] = "FIXED";
+            } else {
+                // 通常クールは値を取得
+                for (let p = 1; p <= 8; p++) {
+                    const el = document.getElementById(`${slot}p${p}`);
+                    payload[`${slot}p${p}`] = el ? el.value : "";
+                }
+            }
         });
 
-        if (!confirm("送信しますか？")) return;
+        // ここで送信前のバリデーション（内科2, 外科1, マイナー1-3のルール）を行う場合は
+        // 上記のcatCountsロジックをここで実行してください
+
+        if (!confirm("希望データを送信します。よろしいですか？")) return;
+
+        payload["access_token"] = liff.getAccessToken();
+
         fetch(GAS_API_URL, { 
-            method: "POST", mode: "cors", headers: { "Content-Type": "text/plain" },
+            method: "POST", 
+            mode: "cors", 
+            headers: { "Content-Type": "text/plain" },
             body: JSON.stringify(payload) 
-        }).then(res => res.json()).then(res => { alert(res.message); if(res.success) initializeApp(); });
+        })
+        .then(res => res.json())
+        .then(res => { 
+            alert(res.message); 
+            if(res.success) initializeApp(); 
+        })
+        .catch(err => alert("通信エラーが発生しました。" + err));
     }
 </script>
 </body>
