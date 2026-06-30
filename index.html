@@ -8,7 +8,7 @@
 </head>
 <body>
 <div class="fixed-header">
-    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.45</span></div>
+    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.46</span></div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">ログイン中：学籍番号 <span id="current-sid"></span> さん</div>
     <ul class="nav nav-tabs nav-fill" id="mainTab" role="tablist"><li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash" role="tab">現在の状況</a></li><li class="nav-item"><a class="nav-link" id="form-tab" data-toggle="tab" href="#form" role="tab">希望を入力する</a></li><li class="nav-item"><a class="nav-link" id="history-tab" data-toggle="tab" href="#history" role="tab">提出履歴</a></li></ul>
 </div>
@@ -48,7 +48,7 @@
             if (!data.success) { alert("サーバーエラー: " + data.message); return; }
             serverDepartments = data.departments; serverSlots = data.slots; serverAnyCounts = data.anyCounts || {}; serverRatios = data.ratios;
             buildFormFields();
-            serverSlots.forEach(s => { if(s.includes("前半")) for(let p=1;p<=8;p++) handle2WRowToggle(s,p); });
+            serverSlots.forEach(s => { if(s.includes("前半")) for(let p=1;p<=8;p++) handle2WRowToggle(s,p,false); });
             renderHistory(data.history);
             if (data.history && data.history.length > 0) {
                 const latest = data.history[0], sidInput = document.getElementById("student_id");
@@ -84,29 +84,35 @@
         }
         updateAnyOptions(); updateDashboard();
     }
-    function handle2WRowToggle(baseSlot, p) {
+    function handle2WRowToggle(baseSlot, p, clearValue = true) {
         const chk = document.getElementById(`2w_${baseSlot}p${p}`), partnerSlot = baseSlot.replace("前半", "後半"), fEl = document.getElementById(`${baseSlot}p${p}`), bEl = document.getElementById(`${partnerSlot}p${p}`), bWrapper = document.getElementById(`wrapper_${partnerSlot}p${p}`);
         const isFixedF = document.getElementById(`fixed_${baseSlot}`)?.checked, isFixedB = document.getElementById(`fixed_${partnerSlot}`)?.checked;
-        if (fEl) { fEl.innerHTML = buildDeptOptionsSlot(baseSlot, p); fEl.value = ""; if(isFixedF) fEl.disabled = true; }
-        if (bEl) { bEl.innerHTML = buildDeptOptionsSlot(partnerSlot, p); bEl.value = ""; bEl.disabled = (!chk || !chk.checked) || isFixedB; }
-        if (bWrapper) { if (!chk || !chk.checked) bWrapper.classList.add("row-blackout"); else bWrapper.classList.remove("row-blackout"); }
-        if (fEl && (!chk || !chk.checked)) handle4WLock(baseSlot, p);
-        if (isFixedF) { if(fEl) fEl.disabled = true; if(bEl) { bEl.value = ""; bEl.disabled = true; } }
-        if (isFixedB) { if(bEl) { bEl.value = ""; bEl.disabled = true; } }
+        if (fEl) { fEl.innerHTML = buildDeptOptionsSlot(baseSlot, p); if (clearValue) fEl.value = ""; }
+        if (bEl) { bEl.innerHTML = buildDeptOptionsSlot(partnerSlot, p); if (clearValue) bEl.value = ""; }
+        if (isFixedF) { if(fEl) fEl.disabled = true; if(bEl) { bEl.value = ""; bEl.disabled = true; } if(bWrapper) bWrapper.classList.add("row-blackout"); return; }
+        if (isFixedB) { if(bEl) { bEl.value = ""; bEl.disabled = true; } if(bWrapper) bWrapper.classList.add("row-blackout"); return; }
+        if (!chk || !chk.checked) {
+            if(bEl) bEl.disabled = true; if(bWrapper) bWrapper.classList.add("row-blackout"); if(fEl) handle4WLock(baseSlot, p);
+        } else {
+            if(bEl) bEl.disabled = false; if(bWrapper) bWrapper.classList.remove("row-blackout");
+        }
         updateAnyOptions(); updateDashboard();
     }
     function toggleSlotFixed(slot) {
         const isFixed = document.getElementById(`fixed_${slot}`).checked, container = document.getElementById(`fields_${slot}`), isFirstHalf = slot.includes("前半"), baseSlot = isFirstHalf ? slot : slot.replace("後半", "前半");
         if (isFixed) {
             container.classList.add("slot-blackout");
-            for (let p = 1; p <= 8; p++) { const el = document.getElementById(`${slot}p${p}`); if (el) { el.value = ""; el.disabled = true; } }
+            for (let p = 1; p <= 8; p++) {
+                const el = document.getElementById(`${slot}p${p}`); if (el) { el.value = ""; el.disabled = true; }
+                if (isFirstHalf) { const partnerSlot = slot.replace("前半", "後半"), bEl = document.getElementById(`${partnerSlot}p${p}`), bWrapper = document.getElementById(`wrapper_${partnerSlot}p${p}`); if(bEl) { bEl.value = ""; bEl.disabled = true; } if(bWrapper) bWrapper.classList.add("row-blackout"); }
+                else { const bWrapper = document.getElementById(`wrapper_${slot}p${p}`); if(bWrapper) bWrapper.classList.add("row-blackout"); }
+            }
         } else {
             container.classList.remove("slot-blackout");
             for (let p = 1; p <= 8; p++) {
-                const el = document.getElementById(`${slot}p${p}`), chk = document.getElementById(`2w_${baseSlot}p${p}`);
-                if (el) el.disabled = (slot.includes("後半") && (!chk || !chk.checked));
+                if (isFirstHalf) { handle2WRowToggle(slot, p, false); } 
+                else { handle2WRowToggle(baseSlot, p, false); }
             }
-            if (isFirstHalf) { for(let p=1;p<=8;p++) handle4WLock(slot, p); }
         }
         updateAnyOptions(); updateDashboard();
     }
@@ -118,7 +124,7 @@
             const isFirstHalf = slot.includes("前半");
             slotHtml += `<div class="border p-2 mb-2 rounded bg-light slot-container" id="container_${slot}"><div class="d-flex justify-content-between align-items-center mb-1"><span class="badge badge-dark">${slot}</span><div class="custom-control custom-checkbox"><input type="checkbox" class="custom-control-input" id="fixed_${slot}" onchange="toggleSlotFixed('${slot}')"><label class="custom-control-label font-weight-bold text-danger" for="fixed_${slot}" style="font-size:0.85rem; cursor:pointer;">すでに決まっている</label></div></div><div id="fields_${slot}">`;
             for (let p = 1; p <= 8; p++) {
-                const fClass = p === 1 ? "font-weight-bold" : "text-muted", opt2W = isFirstHalf ? `<div class="custom-control custom-checkbox ml-2 d-inline-block"><input type="checkbox" class="custom-control-input" id="2w_${slot}p${p}" onchange="handle2WRowToggle('${slot}', ${p})"><label class="custom-control-label font-weight-bold text-primary" for="2w_${slot}p${p}" style="font-size:0.75rem; cursor:pointer;">2W</label></div>` : "";
+                const fClass = p === 1 ? "font-weight-bold" : "text-muted", opt2W = isFirstHalf ? `<div class="custom-control custom-checkbox ml-2 d-inline-block"><input type="checkbox" class="custom-control-input" id="2w_${slot}p${p}" onchange="handle2WRowToggle('${slot}', ${p}, true)"><label class="custom-control-label font-weight-bold text-primary" for="2w_${slot}p${p}" style="font-size:0.75rem; cursor:pointer;">2W</label></div>` : "";
                 slotHtml += `<div class="form-group row mb-1 align-items-center" id="wrapper_${slot}p${p}"><div class="col-4 pr-0 d-flex align-items-center justify-content-between"><label class="${fClass} mb-0" style="font-size:0.8rem;">第${p}希望:</label>${opt2W}</div><div class="col-8"><select class="form-control form-control-sm" id="${slot}p${p}" onchange="handle4WLock('${slot}', ${p}); updateAnyOptions(); updateDashboard();">${buildDeptOptionsSlot(slot, p)}</select></div></div>`;
             }
             slotHtml += `</div></div>`; 
@@ -131,7 +137,7 @@
             if (data[`${slot}p1`] === "FIXED") {
                 let checkEl = document.getElementById(`fixed_${slot}`); if (checkEl) { checkEl.checked = true; toggleSlotFixed(slot); }
             } else {
-                if (slot.includes("前半")) { for (let p = 1; p <= 8; p++) { if (data[`2w_${slot}p${p}`] !== undefined) { document.getElementById(`2w_${slot}p${p}`).checked = data[`2w_${slot}p${p}`]; handle2WRowToggle(slot, p); } } }
+                if (slot.includes("前半")) { for (let p = 1; p <= 8; p++) { if (data[`2w_${slot}p${p}`] !== undefined) { document.getElementById(`2w_${slot}p${p}`).checked = data[`2w_${slot}p${p}`]; handle2WRowToggle(slot, p, false); } } }
                 for (let p = 1; p <= 8; p++) { let key = `${slot}p${p}`; if (data[key] && document.getElementById(key)) document.getElementById(key).value = data[key]; }
             }
         });
