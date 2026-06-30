@@ -26,7 +26,7 @@
 
 <div class="fixed-header">
     <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">
-        臨床実習 希望調査システム <span class="badge badge-info">ver0.42</span>
+        臨床実習 希望調査システム <span class="badge badge-info">ver0.43</span>
     </div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">
         ログイン中：学籍番号 <span id="current-sid"></span> さん
@@ -190,33 +190,28 @@
         return 4;
     }
     function handle4WLock(slot, p) {
-        const myEl = document.getElementById(`${slot}p${p}`);
-        if (!myEl) return;
-
-        const dept = serverDepartments.find(d => d.id == myEl.value);
         const firstHalfSlot = slot.replace("後半", "前半");
-        const partnerSlot = slot.includes("前半") ? slot.replace("前半","後半") : slot.replace("後半","前半");
+        const partnerSlot = firstHalfSlot.replace("前半", "後半");       
+        const mainEl = document.getElementById(`${firstHalfSlot}p${p}`);
         const partnerEl = document.getElementById(`${partnerSlot}p${p}`);
-        if (!partnerEl) return;
-
+        if (!mainEl || !partnerEl) return;
+        const isFixed = document.getElementById(`fixed_${firstHalfSlot}`)?.checked || document.getElementById(`fixed_${partnerSlot}`)?.checked;
+        if (isFixed) return;
         const check2wEl = document.getElementById(`check2w_${firstHalfSlot}p${p}`);
         const is2WMode = check2wEl ? check2wEl.checked : false;
-
         if (is2WMode) {
-            myEl.disabled = false;
+            mainEl.disabled = false;
             partnerEl.disabled = false;
         } else {
-            if (slot.includes("前半")) {
-                if (dept && dept.type === "4W") {
-                    partnerEl.value = dept.id;
-                    partnerEl.disabled = true;
-                } else {
-                    partnerEl.value = "";
-                    partnerEl.disabled = true;
-                }
+            const dept = serverDepartments.find(d => d.id == mainEl.value);
+            if (dept && dept.type === "4W") {
+                partnerEl.value = dept.id; // 前半と同じ科をコピー
+                partnerEl.disabled = true; // 後半をロック
+            } else {
+                partnerEl.value = "";
+                partnerEl.disabled = true; // 前半が空なら、後半単体で選ばせないようピンポイントでロック
             }
         }
-
         updateAnyOptions();
         updateDashboard();
     }
@@ -241,7 +236,10 @@
                     el.disabled = false;
                 }
             }
-            handle4WLock(slot, 1); 
+            // 【修正】解除時、p1〜p8すべての希望に対してそれぞれの4W/2Wロック状態を正しく再評価する
+            for (let p = 1; p <= 8; p++) {
+                handle4WLock(slot, p); 
+            }
         }
         updateAnyOptions();
         updateDashboard();
@@ -251,20 +249,17 @@
         let options = '<option value="">-- 選択してください --</option>';
         const catNames = ["", "内科", "外科", "マイナー", "その他"];
 
-        // 【追加】常に「前半」のチェックボックスの状態を基準にする
         const firstHalfSlot = slot.replace("後半", "前半");
-        const checkEl = document.getElementById(`check2w_${firstHalfSlot}pNum`);
-        const checkEl_actual = document.getElementById(`check2w_${firstHalfSlot}p${pNum}`); // 安全に動的取得
+        const checkEl_actual = document.getElementById(`check2w_${firstHalfSlot}p${pNum}`); 
         const is2WMode = checkEl_actual ? checkEl_actual.checked : false;
 
         serverDepartments.forEach(d => {
             const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
             if (capacity > 0) {
-                // 【追加】2W化チェック状態によるフィルタリング
                 if (is2WMode) {
-                    if (d.type !== "2W" && d.type !== "hybrid") return; // 2Wモード：2W/hybrid以外を排除
+                    if (d.type !== "2W" && d.type !== "hybrid") return; 
                 } else {
-                    if (d.type !== "4W") return; // 4Wモード：4W以外を排除
+                    if (d.type !== "4W") return; 
                 }
 
                 const cat = getCategory(d.id);
@@ -320,7 +315,7 @@
                                 </div>
                                 ` : ''}
                                 <select class="form-control form-control-sm slot-p1" id="${slot}p1" 
-                                        onchange="handle4WLock('${slot}', 1); updateAnyOptions(); updateDashboard();">
+                                        onchange="handle4WLock('${slot}', 1);">
                                     ${buildDeptOptionsSlot(slot, 1)}
                                 </select>
                             </div>
@@ -337,7 +332,7 @@
                                 </div>
                                 ` : ''}
                                 <select class="form-control form-control-sm" id="${slot}p${p}" 
-                                        onchange="handle4WLock('${slot}', ${p}); updateDashboard();">
+                                        onchange="handle4WLock('${slot}', ${p});">
                                     ${buildDeptOptionsSlot(slot, p)}
                                 </select>
                             </div>
@@ -347,12 +342,11 @@
                 </div>`; 
         });
         document.getElementById("slot-fields-container").innerHTML = slotHtml;
+
+        // 【修正】一律ブラックアウトのループを削除し、各枠の状態（初期状態は4Wかつ空なので後半ロック）を正しくピンポイント適用
         serverSlots.forEach(slot => {
-            if (slot.includes("後半")) {
-                for (let p = 1; p <= 8; p++) {
-                    const el = document.getElementById(`${slot}p${p}`);
-                    if (el) el.disabled = true;
-                }
+            for (let p = 1; p <= 8; p++) {
+                handle4WLock(slot, p);
             }
         });
     }
@@ -394,6 +388,7 @@
             }
         });
     }
+    // ダッシュボードと仮カレンダーのリアルタイム更新
     function updateDashboard() {
         let calHtml = "";
         serverSlots.forEach(slot => {
@@ -418,6 +413,7 @@
                 </div>`;
         });
         document.getElementById("calendar-body").innerHTML = calHtml;
+
         let anyHtml = "";
         const anyKeys = ["Any1", "Any2", "Any3", "Any4"];
         anyKeys.forEach((key, idx) => {
@@ -445,28 +441,31 @@
         });
         document.getElementById("any-dashboard-body").innerHTML = anyHtml;
     }
+
+    // 【統合・修正】2W化チェックボックスが切り替わったときの処理
     function handle2WCheckChange(slot, p) {
-        const checkEl = document.getElementById(`check2w_${slot}p${p}`);
-        const myEl = document.getElementById(`${slot}p${p}`);
-        if (!checkEl || !myEl) return;
-        const partnerSlot = slot.replace("前半", "後半");
+        const firstHalfSlot = slot.replace("後半", "前半");
+        const partnerSlot = firstHalfSlot.replace("前半", "後半");
+        
+        const checkEl = document.getElementById(`check2w_${firstHalfSlot}p${p}`);
+        const mainEl = document.getElementById(`${firstHalfSlot}p${p}`);
         const partnerEl = document.getElementById(`${partnerSlot}p${p}`);
-        myEl.innerHTML = buildDeptOptionsSlot(slot, p);
-        myEl.value = "";
-        if (partnerEl) {
-            partnerEl.innerHTML = buildDeptOptionsSlot(partnerSlot, p);
-            partnerEl.value = "";
-            
-            if (checkEl.checked) {
-                partnerEl.disabled = false;
-            } else {
-                partnerEl.disabled = true;
-            }
-        }
-        handle4WLock(slot, p);
-        updateAnyOptions();
-        updateDashboard();
-    }function renderHistory(history) {
+        if (!checkEl || !mainEl || !partnerEl) return;
+
+        // 4W ⇄ 2W の切り替え時は、選択肢のミスマッチを防ぐため安全に値を一度クリアする
+        mainEl.value = "";
+        partnerEl.value = "";
+        
+        // モードに応じた選択肢（2W専用科 / 4W専用科）へプルダウンを再構築
+        mainEl.innerHTML = buildDeptOptionsSlot(firstHalfSlot, p);
+        partnerEl.innerHTML = buildDeptOptionsSlot(partnerSlot, p);
+        
+        // 新しいチェック状態に基づいて、後半枠の disabled 制御を一元適用
+        handle4WLock(firstHalfSlot, p);
+    }
+
+    // 提出履歴の描画
+    function renderHistory(history) {
         if(!history || history.length === 0) return;
         let html = "";
         history.forEach((h, idx) => {
@@ -484,6 +483,8 @@
         });
         document.getElementById("history-container").innerHTML = html;
     }
+
+    // 各クールの第1希望(p1)の選択肢を、Any枠のプルダウンに連動させる
     function updateAnyOptions() {
         let selectedP1Ids = [];
         serverSlots.forEach(slot => {
@@ -516,6 +517,8 @@
             }
         }
     }
+
+    // データの送信処理（バリデーション含む）
     function submitData() {
         const sidInput = document.getElementById("student_id");
         const studentId = sidInput.value.trim();
@@ -535,10 +538,12 @@
                 return;
             }
         }
+        
+        // 必須講座数のカウントチェック
         let catCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
         serverSlots.forEach(slot => {
             let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
-            if (isFixed) return; // カウント除外
+            if (isFixed) return; 
 
             let p1El = document.getElementById(`${slot}p1`);
             if (p1El && p1El.value) {
@@ -562,6 +567,8 @@
             alert("エラー：院内マイナー科(3000番台)は未決定枠の中で1〜3クールの範囲で選択してください。"); 
             return; 
         }
+        
+        // Any枠の重複チェック
         let anyValues = [];
         for(let p=1; p<=4; p++) {
             let val = document.getElementById(`Any${p}`).value;
@@ -573,6 +580,8 @@
                 anyValues.push(val);
             }
         }
+        
+        // 4W講座の前後半不一致チェック（セーフティネット）
         for (let i = 0; i < serverSlots.length; i++) {
             let slot = serverSlots[i];
             if (!slot.includes("前半")) continue;
@@ -598,6 +607,7 @@
             }
         }
 
+        // 同一クール内での講座重複チェック
         for (const slot of serverSlots) {
             let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
             if (isFixed) continue;
@@ -626,7 +636,6 @@
         serverSlots.forEach(slot => {
             let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
             for (let p = 1; p <= 8; p++) {
-                // 決定済みの場合は GAS側に "FIXED" という文字列を送る
                 payload[`${slot}p${p}`] = isFixed ? "FIXED" : document.getElementById(`${slot}p${p}`).value;
             }
         });
