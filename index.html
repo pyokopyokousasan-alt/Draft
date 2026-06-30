@@ -10,7 +10,7 @@
 </head>
 <body>
 <div class="fixed-header">
-    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.52</span></div>
+    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.53</span></div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">ログイン中：学籍番号 <span id="current-sid"></span> さん</div>
     <ul class="nav nav-tabs nav-fill" id="mainTab"><li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash">現在の状況</a></li><li class="nav-item"><a class="nav-link" id="form-tab" data-toggle="tab" href="#form">希望を入力する</a></li><li class="nav-item"><a class="nav-link" id="history-tab" data-toggle="tab" href="#history">提出履歴</a></li></ul>
 </div>
@@ -60,7 +60,7 @@
 
     function getCategory(cid) { const s = cid.toString(); return s.startsWith('1') ? 1 : s.startsWith('2') ? 2 : s.startsWith('3') ? 3 : 4; }
 
-    // 【データ提示の再計算】選択肢のフィルタリングロジック
+    // 【選択肢提示の再計算ロジック】
     function buildOptions(slot, p, is2WChecked) {
         const sIdx = serverSlots.indexOf(slot);
         let options = '<option value="">-- 選択してください --</option>';
@@ -69,7 +69,7 @@
         serverDepartments.forEach(d => {
             const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
             if (capacity > 0) {
-                // 2Wチェックの状態に合わせ、提示する選択肢のタイプを再計算
+                // その行（管轄領域）の2Wチェック状態に合わせて、4W/2W専用講座をフィルタリング
                 if (is2WChecked && d.type === "4W") return; 
                 if (!is2WChecked && d.type === "2W") return; 
 
@@ -81,7 +81,7 @@
         return options;
     }
 
-    // 【管轄領域の再計算・再描画】2Wチェック変更時にそのペア行だけを処理
+    // 【管轄領域（行ペア）の再計算・再表示】
     function recalcRowDomain(frontSlot, partnerSlot, p) {
         const chk = document.getElementById(`2w_${frontSlot}p${p}`);
         const is2WChecked = !!(chk && chk.checked);
@@ -90,14 +90,14 @@
         const bSelect = document.getElementById(`${partnerSlot}p${p}`);
         const bWrapper = document.getElementById(`wrapper_${partnerSlot}p${p}`);
 
-        // 1. 前半・後半それぞれの選択肢提示ロジックを再計算して適用
         const fSelectedVal = fSelect ? fSelect.value : "";
         const bSelectedVal = bSelect ? bSelect.value : "";
 
+        // 1. 選択肢提示ロジックを再計算して差し替え（値は退避させて維持）
         if (fSelect) { fSelect.innerHTML = buildOptions(frontSlot, p, is2WChecked); fSelect.value = fSelectedVal; }
         if (bSelect) { bSelect.innerHTML = buildOptions(partnerSlot, p, is2WChecked); bSelect.value = bSelectedVal; }
 
-        // 2. 表示（ブラックアウト・同期）ロジックの再計算
+        // 2. 表示・連動ロジックの再計算
         if (!is2WChecked) {
             if (bSelect) { bSelect.disabled = true; if (fSelect) bSelect.value = fSelect.value; }
             if (bWrapper) bWrapper.classList.add("block-blackout");
@@ -108,7 +108,7 @@
         updateAnyOptions(); updateDashboard();
     }
 
-    // 前半のドロップダウン変更時のコピーロジック（4W時のみ）
+    // 前半のドロップダウン変更時の同期ロジック（4W時のみ機能）
     function handleFrontChange(frontSlot, partnerSlot, p) {
         const chk = document.getElementById(`2w_${frontSlot}p${p}`);
         if (!chk || !chk.checked) {
@@ -124,14 +124,14 @@
         document.getElementById("any-fields-container").innerHTML = anyHtml;
 
         let slotHtml = "";
-        // 前半・後半のペアを確実に捉えるループ構造
         for (let i = 0; i < serverSlots.length; i++) {
             const slot = serverSlots[i];
-            if (!slot.includes("前半")) KakuhaiHtml(slot); continue; // 後半はスキップし、前半の処理内でペア生成
+            // 後半スロットはスキップ（前半の処理のなかでペアとして同時に組み立てるため）
+            if (!slot.includes("前半")) { continue; }
             const partnerSlot = serverSlots[i+1] || "";
 
             slotHtml += `<div class="border p-2 mb-2 rounded bg-light">
-                <div class="mb-1"><span class="badge badge-primary">${slot.replace("前半","")} (前後半ペア領域)</span></div>`;
+                <div class="mb-1"><span class="badge badge-primary">${slot.replace("前半","")}クール (前後半ペア領域)</span></div>`;
             
             for (let p = 1; p <= 8; p++) {
                 // 前半行の組み立て
@@ -143,7 +143,7 @@
                     <div class="col-8"><select class="form-control form-control-sm" id="${slot}p${p}" onchange="handleFrontChange('${slot}', '${partnerSlot}', ${p})">${buildOptions(slot, p, false)}</select></div>
                 </div>`;
 
-                // 後半行の組み立て（初期状態でブラックアウト状態にする）
+                // 後半行の組み立て（初期は4Wモードなのでブラックアウト状態）
                 slotHtml += `<div class="form-group row mb-1 align-items-center block-blackout" id="wrapper_${partnerSlot}p${p}">
                     <div class="col-4 pr-0"><label class="mb-0 text-muted" style="font-size:0.8rem;">第${p}希望(後):</label></div>
                     <div class="col-8"><select class="form-control form-control-sm" id="${partnerSlot}p${p}" disabled onchange="updateAnyOptions(); updateDashboard();">${buildOptions(partnerSlot, p, false)}</select></div>
@@ -153,7 +153,6 @@
         }
         document.getElementById("slot-fields-container").innerHTML = slotHtml;
     }
-    function KakuhaiHtml(s) {} // ループ用ダミー
 
     function applyFormValues(data) {
         for (let p = 1; p <= 4; p++) { if (data[`Any${p}`]) document.getElementById(`Any${p}`).value = data[`Any${p}`]; }
@@ -163,7 +162,7 @@
             for (let p = 1; p <= 8; p++) {
                 if (data[`2w_${slot}p${p}`] !== undefined) {
                     const chk = document.getElementById(`2w_${slot}p${p}`);
-                    if (chk) { chk.checked = !!data[`2w_${slot}p${p}`]; recalcRowDomain(slot, partnerSlot, p); }
+                    if (chk) { chk.checked = !!data[`2w_${slot}p${p}`]; }
                 }
                 if (data[`${slot}p${p}`]) document.getElementById(`${slot}p${p}`).value = data[`${slot}p${p}`];
                 if (data[`${partnerSlot}p${p}`]) document.getElementById(`${partnerSlot}p${p}`).value = data[`${partnerSlot}p${p}`];
