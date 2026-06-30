@@ -8,7 +8,7 @@
 </head>
 <body>
 <div class="fixed-header">
-    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.42</span></div>
+    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.43</span></div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">ログイン中：学籍番号 <span id="current-sid"></span> さん</div>
     <ul class="nav nav-tabs nav-fill" id="mainTab" role="tablist"><li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash" role="tab">現在の状況</a></li><li class="nav-item"><a class="nav-link" id="form-tab" data-toggle="tab" href="#form" role="tab">希望を入力する</a></li><li class="nav-item"><a class="nav-link" id="history-tab" data-toggle="tab" href="#history" role="tab">提出履歴</a></li></ul>
 </div>
@@ -84,10 +84,11 @@
     }
     function handle2WRowToggle(baseSlot, p) {
         const chk = document.getElementById(`2w_${baseSlot}p${p}`), partnerSlot = baseSlot.replace("前半", "後半"), fEl = document.getElementById(`${baseSlot}p${p}`), bEl = document.getElementById(`${partnerSlot}p${p}`), bWrapper = document.getElementById(`wrapper_${partnerSlot}p${p}`);
-        const isFixed = document.getElementById(`fixed_${baseSlot}`)?.checked || document.getElementById(`fixed_${partnerSlot}`)?.checked;
+        const isFixedF = document.getElementById(`fixed_${baseSlot}`)?.checked, isFixedB = document.getElementById(`fixed_${partnerSlot}`)?.checked;
         if (fEl) { fEl.innerHTML = buildDeptOptionsSlot(baseSlot, p); fEl.value = ""; }
-        if (bEl) { bEl.innerHTML = buildDeptOptionsSlot(partnerSlot, p); bEl.value = ""; bEl.disabled = (!chk || !chk.checked) || isFixed; }
+        if (bEl) { bEl.innerHTML = buildDeptOptionsSlot(partnerSlot, p); bEl.value = ""; bEl.disabled = (!chk || !chk.checked) || isFixedB; }
         if (bWrapper) { if (!chk || !chk.checked) bWrapper.classList.add("row-blackout"); else bWrapper.classList.remove("row-blackout"); }
+        if (fEl && (!chk || !chk.checked)) handle4WLock(baseSlot, p);
         updateAnyOptions(); updateDashboard();
     }
     function toggleSlotFixed(slot) {
