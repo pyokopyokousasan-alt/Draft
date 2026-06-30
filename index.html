@@ -18,6 +18,10 @@
         select.form-control { width: 100% !important; max-width: 100% !important; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
         .timeline-item { border-left: 2px solid #007bff; padding-left: 15px; position: relative; margin-bottom: 15px; }
         .timeline-item::before { content: ""; position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background-color: #007bff; }
+        
+        /* ブラックアウト用のスタイル */
+        .slot-container { transition: opacity 0.3s ease; }
+        .slot-blackout { opacity: 0.5; pointer-events: none; background-color: #e9ecef !important; }
     </style>
 </head>
 <body>
@@ -71,7 +75,7 @@
                             <li>Any枠内（Any1〜Any4）重複選択不可。第一希望からのみ選択可能。</li>
                             <li>倍率は「提出者のデータ」に基づく集計です。提出するまでご自身の希望は反映されていません。</li>
                             <li>なりすまし防止の為、LINEアカウントにつき1つの学籍番号のみ提出可能です。問い合わせは宮崎まで。</li>
-                            <li>内科2以上、外科1以上、マイナー1から3、の条件を満たしていないと提出できません。</li>
+                            <li>内科2以上、外科1以上、マイナー1から3、の条件を満たしていないと提出できません。（すでに決まっているクールはカウントから除外されます）</li>
                         </ul>
                     </div>
                 </div>
@@ -90,11 +94,6 @@
                 </div>
 
                 <div class="form-section">
-                    <div class="section-title">確定クール（実習先が決定済みの場合）</div>
-                    <div id="fixed-slots-container" class="row"></div>
-                </div>
-
-                <div class="form-section">
                     <div class="section-title">Any枠 希望</div>
                     <div id="any-fields-container"></div>
                 </div>
@@ -109,6 +108,8 @@
         </div>
 
         <div class="tab-pane fade" id="history" role="tabpanel">
+            <div class="alert alert-info py-2 px-3 text-center" style="font-size:0.8rem;">
+            </div>
             <div id="history-container">
                 <p class="text-muted text-center">履歴はありません。</p>
             </div>
@@ -130,33 +131,65 @@
     window.onload = function() {
         liff.init({ liffId: "2010321278-kOScGbBq" })
             .then(() => {
-                if (!liff.isLoggedIn()) { liff.login(); } 
-                else {
-                    liff.getProfile().then(profile => {
-                        liffUser.uid = profile.userId; 
-                        initializeApp(); 
-                    });
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                } else {
+                    liff.getProfile()
+                        .then(profile => {
+                            liffUser.uid = profile.userId; 
+                            initializeApp(); 
+                        })
+                        .catch(err => {
+                            alert("LINEプロフィールの取得に失敗しました。電波状況の良い場所で再試行してください。");
+                        });
                 }
+            })
+            .catch(err => {
+                alert("LIFFの初期化に失敗しました。LINEアプリ内からアクセスしてください。");
             });
     };
 
     function initializeApp() {
+        if (!liffUser.uid) return;
+
         fetch(`${GAS_API_URL}?uid=${liffUser.uid}`)
             .then(res => res.json())
             .then(data => {
+                if (!data.success) {
+                    alert("サーバーエラーが発生しました: " + data.message);
+                    return;
+                }
                 serverDepartments = data.departments;
                 serverSlots = data.slots;
+                serverAnyCounts = data.anyCounts || { Any1:{}, Any2:{}, Any3:{}, Any4:{} };
                 serverRatios = data.ratios;
-                buildFixedSlots();
+
                 buildFormFields();
+                renderHistory(data.history);
+
                 if(data.history && data.history.length > 0) {
                     const latest = data.history[0];
-                    document.getElementById("student_id").value = latest.student_id;
-                    document.getElementById("student_id").disabled = true;
+                    const sidInput = document.getElementById("student_id");
+
+                    sidInput.value = latest.student_id;
+                    sidInput.disabled = true;
+                    sidInput.classList.add("bg-secondary", "text-white");
+                    document.getElementById("id-lock-msg").style.display = "block";
+
+                    document.getElementById("login-info").style.display = "block";
+                    document.getElementById("current-sid").innerText = latest.student_id;
+
                     applyFormValues(latest);
+
+                    document.getElementById("status-alert").className = "alert alert-success text-center font-weight-bold";
+                    document.getElementById("status-alert").innerHTML = "🎉 希望調査は提出済みです（変更可能）";
                 }
+
                 updateAnyOptions(); 
                 updateDashboard();
+            })
+            .catch(err => {
+                alert("データの読み込みに失敗しました。再読み込みしてください。" + err);
             });
     }
 
@@ -168,163 +201,420 @@
         return 4;
     }
 
-    function buildFixedSlots() {
-    let html = "";
-    serverSlots.forEach(slot => {
-        html += `
-            <div class="col-6 mb-2">
-                <div class="custom-control custom-checkbox">
-                    <input type="checkbox" class="custom-control-input" id="fixed-${slot}" onchange="maskSlot('${slot}')">
-                    <label class="custom-control-label" for="fixed-${slot}">${slot}</label>
-                </div>
-            </div>`;
-    });
-    document.getElementById("fixed-slots-container").innerHTML = html;
-}
     function buildDeptOptionsSlot(slot, pNum) {
         const sIdx = serverSlots.indexOf(slot);
         let options = '<option value="">-- 選択してください --</option>';
+        const catNames = ["", "内科", "外科", "マイナー", "その他"];
+
         serverDepartments.forEach(d => {
             const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
             if (capacity > 0) {
-                const ratio = Number(serverRatios.Slots?.[`${slot}p${pNum}`]?.[d.id] || 0);
-                options += `<option value="${d.id}">[${getCategory(d.id)}] ${d.name} (${ratio.toFixed(1)}倍)</option>`;
+                const cat = getCategory(d.id);
+                const catLabel = (cat >= 0 && cat < catNames.length) ? catNames[cat] : "その他";
+                const slotKey = `${slot}p${pNum}`;
+                const ratio = Number(serverRatios.Slots?.[slotKey]?.[d.id] || 0);
+                
+                let statusIcon =
+                    ratio < 1 ? "🟢" :
+                    ratio < 2 ? "🟡" :
+                    "🔴";
+
+                options += `<option value="${d.id}">
+                    ${statusIcon} [${catLabel}] ${d.name} (${ratio.toFixed(1)}倍)
+                </option>`;
             }
         });
         return options;
     }
 
+    function handle4WLock(slot, p) {
+        const myEl = document.getElementById(`${slot}p${p}`);
+        if (!myEl) return;
+
+        const dept = serverDepartments.find(d => d.id == myEl.value);
+        const partnerSlot = slot.includes("前半")
+            ? slot.replace("前半","後半")
+            : slot.replace("後半","前半");
+
+        const partnerEl = document.getElementById(`${partnerSlot}p${p}`);
+        if (!partnerEl) return;
+
+        if (dept && dept.type === "4W") {
+            partnerEl.value = dept.id;
+            partnerEl.disabled = true;
+        } else {
+            if (partnerEl.disabled) {
+                partnerEl.value = "";
+            }
+            partnerEl.disabled = false;
+        }
+
+        updateAnyOptions();
+        updateDashboard();
+    }
+
+    // ブラックアウト仕様を制御する関数
+    function toggleSlotFixed(slot) {
+        const isFixed = document.getElementById(`fixed_${slot}`).checked;
+        const container = document.getElementById(`fields_${slot}`);
+        
+        if (isFixed) {
+            container.classList.add("slot-blackout");
+            for (let p = 1; p <= 8; p++) {
+                const el = document.getElementById(`${slot}p${p}`);
+                if (el) {
+                    el.value = ""; 
+                    el.disabled = true;
+                }
+            }
+        } else {
+            container.classList.remove("slot-blackout");
+            for (let p = 1; p <= 8; p++) {
+                const el = document.getElementById(`${slot}p${p}`);
+                if (el) {
+                    el.disabled = false;
+                }
+            }
+            // 4Wのロック解除状態を再度適応
+            handle4WLock(slot, 1); 
+        }
+        updateAnyOptions();
+        updateDashboard();
+    }
+
     function buildFormFields() {
-        let anyHtml = "";
+        let anyHtml = ""; 
         for (let i = 1; i <= 4; i++) {
-            anyHtml += `<div class="form-group row mb-2"><label class="col-4 font-weight-bold">Any${i}:</label><div class="col-8"><select class="form-control" id="Any${i}" onchange="updateDashboard()"><option value="">-- 選択してください --</option></select></div></div>`;
+            anyHtml += `
+                <div class="form-group row mb-2">
+                    <label class="col-4 col-form-label font-weight-bold">Any${i}:</label>
+                    <div class="col-8">
+                        <select class="form-control" id="Any${i}" onchange="updateDashboard()">
+                            <option value="">-- 選択してください --</option>
+                        </select>
+                    </div>
+                </div>`;
         }
         document.getElementById("any-fields-container").innerHTML = anyHtml;
 
         let slotHtml = ""; 
         serverSlots.forEach(slot => {
-            slotHtml += `<div class="border p-2 mb-2 rounded bg-light"><span class="badge badge-dark">${slot}</span>`;
-            for(let p=1; p<=8; p++) {
-                slotHtml += `<div class="form-group row mb-1 align-items-center"><label class="col-4 text-muted" style="font-size:0.8rem;">第${p}希望:</label><div class="col-8"><select class="form-control form-control-sm" id="${slot}p${p}" onchange="updateDashboard()">${buildDeptOptionsSlot(slot, p)}</select></div></div>`;
+            slotHtml += `
+                <div class="border p-2 mb-2 rounded bg-light slot-container" id="container_${slot}">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="badge badge-dark">${slot}</span>
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="fixed_${slot}" onchange="toggleSlotFixed('${slot}')">
+                            <label class="custom-control-label font-weight-bold text-danger" for="fixed_${slot}" style="font-size:0.85rem; cursor:pointer;">すでに決まっている</label>
+                        </div>
+                    </div>
+                    <div id="fields_${slot}">
+                        <div class="form-group row mb-1 align-items-center">
+                            <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(p1):</label>
+                            <div class="col-8">
+                                <select class="form-control form-control-sm slot-p1" id="${slot}p1" 
+                                        onchange="handle4WLock('${slot}', 1); updateAnyOptions(); updateDashboard();">
+                                    ${buildDeptOptionsSlot(slot, 1)}
+                                </select>
+                            </div>
+                        </div>`;
+
+            for(let p=2; p<=8; p++) {
+                slotHtml += `
+                        <div class="form-group row mb-1 align-items-center">
+                            <label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(p${p}):</label>
+                            <div class="col-8">
+                                <select class="form-control form-control-sm" id="${slot}p${p}" 
+                                        onchange="handle4WLock('${slot}', ${p}); updateDashboard();">
+                                    ${buildDeptOptionsSlot(slot, p)}
+                                </select>
+                            </div>
+                        </div>`;
             }
-            slotHtml += `</div>`;
+            slotHtml += `   </div>
+                </div>`; 
         });
         document.getElementById("slot-fields-container").innerHTML = slotHtml;
     }
 
-    function maskSlot(slot) {
-    const isChecked = document.getElementById(`fixed-${slot}`).checked;
-    // そのクールの選択肢を全無効化/有効化
-    for (let p = 1; p <= 8; p++) {
-        const el = document.getElementById(`${slot}p${p}`);
-        if (el) {
-            el.disabled = isChecked;
-            if (isChecked) el.value = ""; // 値をリセット
-        }
-    }
-    updateDashboard();
-    }
     function applyFormValues(data) {
-    for(let p=1; p<=4; p++) { 
-        if(data[`Any${p}`]) document.getElementById(`Any${p}`).value = data[`Any${p}`]; 
-    }
-
-    if (data.fixedStatus) {
+        for(let p=1; p<=4; p++) {
+            if(data[`Any${p}`]) document.getElementById(`Any${p}`).value = data[`Any${p}`];
+        }
         serverSlots.forEach(slot => {
-            if (data.fixedStatus[slot] === true || data.fixedStatus[slot] === "true") {
-                const cb = document.getElementById(`fixed-${slot}`);
-                if (cb) {
-                    cb.checked = true;
-                    maskSlot(slot); 
+            let p1Key = `${slot}p1`;
+            if (data[p1Key] === "FIXED") {
+                // FIXED状態の復元
+                let checkEl = document.getElementById(`fixed_${slot}`);
+                if (checkEl) {
+                    checkEl.checked = true;
+                    toggleSlotFixed(slot);
+                }
+            } else {
+                for(let p=1; p<=8; p++) {
+                    let key = `${slot}p${p}`;
+                    if(data[key] && document.getElementById(key)) {
+                        document.getElementById(key).value = data[key];
+                    }
                 }
             }
         });
     }
-
-    serverSlots.forEach(slot => {
-        if (!data.fixedStatus || !data.fixedStatus[slot]) {
-            for(let p=1; p<=8; p++) {
-                let key = `${slot}p${p}`;
-                if(data[key] && document.getElementById(key)) {
-                    document.getElementById(key).value = data[key];
-                }
-            }
-        }
-    });
-}
 
     function updateDashboard() {
+        let calHtml = "";
         serverSlots.forEach(slot => {
-            let val = document.getElementById(`${slot}p1`)?.value;
-            let dept = serverDepartments.find(d => d.id == val);
+            let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
+            
+            let name, ratioStr = "";
+            if (isFixed) {
+                name = '<span class="text-success font-weight-bold">✅ 決定済み</span>';
+            } else {
+                let el = document.getElementById(`${slot}p1`);
+                let val = el ? el.value : "";
+                let dept = serverDepartments.find(d => d.id == val);
+                name = dept ? dept.name : '<span class="text-muted">未選択</span>';
+
+                const slotKey = `${slot}p1`;
+                let ratio = Number(serverRatios.Slots?.[slotKey]?.[val] || 0);
+                ratioStr = val ? ` <small class="text-danger">[倍率: ${ratio.toFixed(1)}倍]</small>` : "";
+            }
+
+            calHtml += `
+                <div class="timeline-item">
+                    <div class="font-weight-bold" style="font-size:0.85rem;">${slot}クール</div>
+                    <div class="text-primary font-weight-bold" style="font-size:0.9rem;">${name}${ratioStr}</div>
+                </div>`;
         });
-        updateAnyOptions();
+        document.getElementById("calendar-body").innerHTML = calHtml;
+
+        let anyHtml = "";
+        const anyKeys = ["Any1", "Any2", "Any3", "Any4"];
+
+        anyKeys.forEach((key, idx) => {
+            let el = document.getElementById(key);
+            let val = el ? el.value : "";
+            if (!val) {
+                anyHtml += `<div class="p-1 text-muted border-bottom" style="font-size:0.8rem;">Any枠 ${idx+1}: 未選択</div>`;
+                return;
+            }
+
+            let dept = serverDepartments.find(d => d.id == val);
+            if (!dept) return;
+            
+            let ratio = Number(serverRatios.Any?.[`Any${idx+1}`]?.[val] || 0);
+
+            let badge = "";
+            if (ratio <= 1.0) badge = `<span class="badge badge-success px-2 py-1">見込み: 高 (安全)</span>`;
+            else if (ratio <= 1.5) badge = `<span class="badge badge-warning px-2 py-1">見込み: 中 (混雑)</span>`;
+            else badge = `<span class="badge badge-danger px-2 py-1">見込み: 低 (高倍率)</span>`;
+
+            anyHtml += `
+                <div class="p-2 border-bottom bg-white rounded mb-1">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="font-weight-bold text-dark" style="font-size:0.85rem;">Any${idx+1}: ${dept.name}</span>
+                        ${badge}
+                    </div>
+                    <div class="text-muted" style="font-size:0.75rem;">累積枠倍率: ${ratio}倍</div>
+                </div>`;
+        });
+        document.getElementById("any-dashboard-body").innerHTML = anyHtml;
+    }
+
+    function renderHistory(history) {
+        if(!history || history.length === 0) return;
+        let html = "";
+        history.forEach((h, idx) => {
+            let isLatest = (idx === 0) ? '<span class="badge badge-success">有効な最新データ</span>' : '<span class="badge badge-secondary">過去のログ</span>';
+            html += `
+                <div class="card mb-2 shadow-sm">
+                    <div class="card-header p-2 bg-light d-flex justify-content-between align-items-center" style="font-size:0.8rem;">
+                        <strong>${h.timestamp}</strong> ${isLatest}
+                    </div>
+                    <div class="card-body p-2" style="font-size:0.75rem;">
+                        <div>学籍番号: <strong>${h.student_id}</strong></div>
+                        <div class="text-truncate">Any1: ${h.Any1 || "未指定"} / Any2: ${h.Any2 || "未指定"} / Any3: ${h.Any3 || "未指定"} / Any4: ${h.Any4 || "未指定"}</div>
+                    </div>
+                </div>`;
+        });
+        document.getElementById("history-container").innerHTML = html;
     }
 
     function updateAnyOptions() {
-        let uniqueP1Ids = [...new Set(serverSlots.map(s => document.getElementById(`${s}p1`).value).filter(v => v))];
+        let selectedP1Ids = [];
+        serverSlots.forEach(slot => {
+            let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
+            if (isFixed) return; // 決定済み枠の選択肢はAny枠に連携しない
+
+            let el = document.getElementById(`${slot}p1`);
+            if (el && el.value) {
+                selectedP1Ids.push(el.value);
+            }
+        });
+
+        let uniqueP1Ids = [...new Set(selectedP1Ids)];
+
         for (let p = 1; p <= 4; p++) {
             let anyEl = document.getElementById(`Any${p}`);
+            if (!anyEl) continue;
+
             let currentVal = anyEl.value;
+
             let optionsHtml = '<option value="">-- 選択してください --</option>';
             uniqueP1Ids.forEach(cid => {
                 let dept = serverDepartments.find(d => d.id == cid);
-                if (dept) optionsHtml += `<option value="${dept.id}">${dept.name}</option>`;
+                if (dept) {
+                    optionsHtml += `<option value="${dept.id}">${dept.name}</option>`;
+                }
             });
             anyEl.innerHTML = optionsHtml;
-            anyEl.value = uniqueP1Ids.includes(currentVal) ? currentVal : "";
+
+            if (uniqueP1Ids.includes(currentVal)) {
+                anyEl.value = currentVal;
+            } else {
+                anyEl.value = ""; 
+            }
         }
     }
 
     function submitData() {
-        const studentId = document.getElementById("student_id").value.trim();
-        if(!/^\d{6}$/.test(studentId)) { alert("学籍番号を確認してください"); return; }
-        
-        let payload = { 
-            line_uid: liffUser.uid, 
-            student_id: studentId,
-            fixedStatus: {} // どのクールが確定かを入れる箱
-        };
+        const sidInput = document.getElementById("student_id");
+        const studentId = sidInput.value.trim();
 
-        // Any枠の取得
-        for (let p = 1; p <= 4; p++) payload[`Any${p}`] = document.getElementById(`Any${p}`).value;
+        if(!/^\d{6}$/.test(studentId)) {
+            alert("エラー：学籍番号は必ず「半角数字6桁」で入力してください。");
+            return;
+        }
 
-        // スロットごとの処理
+        for (let i = 0; i < serverSlots.length; i++) {
+            let slot = serverSlots[i];
+            let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
+            
+            if (isFixed) continue; // 決定済みの場合は必須チェックをスキップ
+
+            let p1Val = document.getElementById(`${slot}p1`) ? document.getElementById(`${slot}p1`).value : "";
+            if (!p1Val) {
+                alert(`エラー：${slot}の「第1希望(p1)」が選択されていません。すべてのクールの第1希望を入力するか、「すでに決まっている」にチェックを入れて送信してください。`);
+                return;
+            }
+        }
+
+        let catCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
         serverSlots.forEach(slot => {
-            const isFixed = document.getElementById(`fixed-${slot}`).checked;
-            payload.fixedStatus[slot] = isFixed; // 確定状態を記録
+            let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
+            if (isFixed) return; // カウント除外
 
-            if (isFixed) {
-                // 確定クールは"FIXED"としてマーク（サーバー側でCID:4として扱う）
-                for (let p = 1; p <= 8; p++) payload[`${slot}p${p}`] = "FIXED";
-            } else {
-                // 通常クールは値を取得
-                for (let p = 1; p <= 8; p++) {
-                    const el = document.getElementById(`${slot}p${p}`);
-                    payload[`${slot}p${p}`] = el ? el.value : "";
+            let p1El = document.getElementById(`${slot}p1`);
+            if (p1El && p1El.value) {
+                let dept = serverDepartments.find(d => d.id == p1El.value);
+                if (dept) {
+                    let cat = getCategory(dept.id);
+                    catCounts[cat]++;
                 }
             }
         });
 
-        // ここで送信前のバリデーション（内科2, 外科1, マイナー1-3のルール）を行う場合は
-        // 上記のcatCountsロジックをここで実行してください
+        // 【ルール制限】決定済みのクール数はカウントされないため、残りのクール数での制限となります
+        if (catCounts[1] < 2) { 
+            alert("エラー：院内内科(1000番台)を未決定枠の中で2クール以上選択してください。"); 
+            return; 
+        }
+        if (catCounts[2] < 1) { 
+            alert("エラー：院内外科(2000番台)を未決定枠の中で1クール以上選択してください。"); 
+            return; 
+        }
+        if (catCounts[3] < 1 || catCounts[3] > 3) { 
+            alert("エラー：院内マイナー科(3000番台)は未決定枠の中で1〜3クールの範囲で選択してください。"); 
+            return; 
+        }
 
+        let anyValues = [];
+        for(let p=1; p<=4; p++) {
+            let val = document.getElementById(`Any${p}`).value;
+            if(val) {
+                if(anyValues.includes(val)) {
+                    alert("エラー：Any枠の中で同じ講座を重複して選択することはできません。");
+                    return;
+                }
+                anyValues.push(val);
+            }
+        }
+
+        // バリデーションチェック：4Wの相方が一致しているか
+        for (let i = 0; i < serverSlots.length; i++) {
+            let slot = serverSlots[i];
+            if (!slot.includes("前半")) continue;
+
+            let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
+            if (isFixed) continue; 
+
+            let partnerSlot = slot.replace("前半", "後半");
+
+            for (let p = 1; p <= 8; p++) {
+                let val1 = document.getElementById(`${slot}p${p}`) ? document.getElementById(`${slot}p${p}`).value : "";
+                let val2 = document.getElementById(`${partnerSlot}p${p}`) ? document.getElementById(`${partnerSlot}p${p}`).value : "";
+
+                let dept1 = serverDepartments.find(d => d.id == val1);
+                let dept2 = serverDepartments.find(d => d.id == val2);
+
+                if ((dept1 && dept1.type === "4W") || (dept2 && dept2.type === "4W")) {
+                    if (val1 !== val2) {
+                        alert(`エラー：${slot.replace("前半","")}クールの第${p}希望に4週間(4W)の講座が含まれています。前半と後半には必ず同じ講座を選択してください。`);
+                        return;
+                    }
+                }
+            }
+        }
+
+        for (const slot of serverSlots) {
+            let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
+            if (isFixed) continue;
+
+            const used = [];
+            for (let p = 1; p <= 8; p++) {
+                const val = document.getElementById(`${slot}p${p}`).value;
+                if (!val) continue;
+                if (used.includes(val)) {
+                    alert(`${slot}では同じ講座を複数順位に設定できません。`);
+                    return;
+                }
+                used.push(val);
+            }
+        }
+
+        let payload = {
+            line_uid: liffUser.uid,
+            student_id: studentId
+        };
+
+        for (let p = 1; p <= 4; p++) {
+            payload[`Any${p}`] = document.getElementById(`Any${p}`).value;
+        }
+
+        serverSlots.forEach(slot => {
+            let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
+            for (let p = 1; p <= 8; p++) {
+                // 決定済みの場合は GAS側に "FIXED" という文字列を送る
+                payload[`${slot}p${p}`] = isFixed ? "FIXED" : document.getElementById(`${slot}p${p}`).value;
+            }
+        });
+        
         if (!confirm("希望データを送信します。よろしいですか？")) return;
 
-        payload["access_token"] = liff.getAccessToken();
+        payload["access_token"] = liff.getAccessToken();     
 
         fetch(GAS_API_URL, { 
             method: "POST", 
-            mode: "cors", 
+            mode: "cors",
             headers: { "Content-Type": "text/plain" },
             body: JSON.stringify(payload) 
         })
-        .then(res => res.json())
-        .then(res => { 
-            alert(res.message); 
-            if(res.success) initializeApp(); 
-        })
-        .catch(err => alert("通信エラーが発生しました。" + err));
+            .then(res => res.json())
+            .then(res => {
+                alert(res.message);
+                if(res.success) { initializeApp(); }
+            })
+            .catch(err => alert("通信エラーが発生しました。" + err));
     }
 </script>
 </body>
