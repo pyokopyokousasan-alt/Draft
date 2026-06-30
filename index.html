@@ -10,7 +10,7 @@
 </head>
 <body>
 <div class="fixed-header">
-    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.57</span></div>
+    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.55</span></div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">ログイン中：学籍番号 <span id="current-sid"></span> さん</div>
     <ul class="nav nav-tabs nav-fill" id="mainTab"><li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash">現在の状況</a></li><li class="nav-item"><a class="nav-link" id="form-tab" data-toggle="tab" href="#form">希望を入力する</a></li><li class="nav-item"><a class="nav-link" id="history-tab" data-toggle="tab" href="#history">提出履歴</a></li></ul>
 </div>
@@ -60,57 +60,30 @@
 
     function getCategory(cid) { const s = cid.toString(); return s.startsWith('1') ? 1 : s.startsWith('2') ? 2 : s.startsWith('3') ? 3 : 4; }
 
-    // 【選択肢提示の再計算ロジック】※第1希望間の横重複排除対応版
+    // 【選択肢提示の再計算ロジック】※縦の列での診療科重複排除を追加
     function buildOptions(slot, p, is2WChecked) {
         const sIdx = serverSlots.indexOf(slot);
         let options = '<option value="">-- 選択してください --</option>';
         const catNames = ["", "内科", "外科", "マイナー", "院外"];
         
-        let excludedIds = [];
-
-        // 1. ★第1希望(p1)限定：他のクールの第1希望(p1)で既に選ばれているIDを排除
-        if (p === 1) {
-            serverSlots.forEach(otherSlot => {
-                if (otherSlot !== slot) {
-                    const otherEl = document.getElementById(`${otherSlot}p1`);
-                    if (otherEl && otherEl.value) {
-                        excludedIds.push(otherEl.value);
-                    }
-                }
-            });
-        }
-        
-        // 2. 縦の重複排除：同じクール内で、自分より上位の希望順位(1 〜 p-1)で選択済みのIDを収集
+        // ★同じクール内で、自分より上位の希望順位(1 〜 p-1)で既に選ばれている診療科IDを収集
+        let selectedUpperIds = [];
         for (let prevP = 1; prevP < p; prevP++) {
             const upperEl = document.getElementById(`${slot}p${prevP}`);
-            if (upperEl && upperEl.value) excludedIds.push(upperEl.value);
-        }
-        
-        // 3. 横の重複排除：2Wモード時、ペアとなるもう一方の行(同じp)で選ばれているIDを排除
-        if (is2WChecked) {
-            let partnerSlotName = "";
-            if (slot.includes("前半")) {
-                const nextIdx = sIdx + 1;
-                if (nextIdx < serverSlots.length) partnerSlotName = serverSlots[nextIdx];
-            } else if (slot.includes("後半")) {
-                const prevIdx = sIdx - 1;
-                if (prevIdx >= 0) partnerSlotName = serverSlots[prevIdx];
-            }
-            if (partnerSlotName) {
-                const partnerEl = document.getElementById(`${partnerSlotName}p${p}`);
-                if (partnerEl && partnerEl.value) excludedIds.push(partnerEl.value);
+            if (upperEl && upperEl.value) {
+                selectedUpperIds.push(upperEl.value);
             }
         }
         
         serverDepartments.forEach(d => {
             const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
             if (capacity > 0) {
-                // モード不一致の制限
+                // 1. 2W/4W/hybrid モード不一致の制限
                 if (is2WChecked && d.type === "4W") return;
                 if (!is2WChecked && d.type === "2W") return;
 
-                // 各種重複排除（第1希望間、縦、横）
-                if (excludedIds.includes(d.id.toString())) return;
+                // 2. ★重複排除：自分より上位の希望で選択済みのIDなら、選択肢として提示しない
+                if (selectedUpperIds.includes(d.id.toString())) return;
 
                 const cat = getCategory(d.id), catLabel = catNames[cat] || "その他";
                 const ratio = Number(serverRatios.Slots?.[`${slot}p${p}`]?.[d.id] || 0);
@@ -120,7 +93,7 @@
         return options;
     }
 
-    // クール内の指定順位以降を連動再計算させる補助関数
+    // クール内の下位希望（現在のpから8まで）を連動して再計算させる補助関数
     function cascadeRecalcChain(slot, partnerSlot, startP, is2WChecked) {
         for (let currentP = startP; currentP <= 8; currentP++) {
             const fSelect = document.getElementById(`${slot}p${currentP}`);
@@ -132,30 +105,11 @@
             if (fSelect) { fSelect.innerHTML = buildOptions(slot, currentP, is2WChecked); fSelect.value = fVal; }
             if (bSelect) { bSelect.innerHTML = buildOptions(partnerSlot, currentP, is2WChecked); bSelect.value = bVal; }
 
+            // 4Wモード時の下位への強制同期の維持
             if (!is2WChecked && bSelect && fSelect) {
                 bSelect.value = fSelect.value;
             }
         }
-    }
-
-    // 全クールの第1希望（p1）のドロップダウンの選択肢だけを一斉に再計算する補助関数
-    function triggerAllP1Recalc() {
-        serverSlots.forEach(slot => {
-            if (!slot.includes("前半")) return;
-            const idx = serverSlots.indexOf(slot);
-            const partnerSlot = serverSlots[idx+1] || "";
-            
-            const chk = document.getElementById(`2w_${slot}p1`);
-            const is2WChecked = !!(chk && chk.checked);
-
-            const fSelect = document.getElementById(`${slot}p1`);
-            const bSelect = document.getElementById(`${partnerSlot}p1`);
-            const fVal = fSelect ? fSelect.value : "";
-            const bVal = bSelect ? bSelect.value : "";
-
-            if (fSelect) { fSelect.innerHTML = buildOptions(slot, 1, is2WChecked); fSelect.value = fVal; }
-            if (bSelect) { bSelect.innerHTML = buildOptions(partnerSlot, 1, is2WChecked); bSelect.value = bVal; }
-        });
     }
 
     // 【管轄領域（行ペア）の再計算・再表示】
@@ -163,22 +117,13 @@
         const chk = document.getElementById(`2w_${frontSlot}p${p}`);
         const is2WChecked = !!(chk && chk.checked);
 
-        const fSelect = document.getElementById(`${frontSlot}p${p}`);
         const bSelect = document.getElementById(`${partnerSlot}p${p}`);
         const bWrapper = document.getElementById(`wrapper_${partnerSlot}p${p}`);
 
-        let fVal = fSelect ? fSelect.value : "";
-        let bVal = bSelect ? bSelect.value : "";
-        if (!is2WChecked) {
-            bVal = fVal;
-        } else if (fVal === bVal) {
-            bVal = "";
-        }
+        // 1. この行から最下位(p=8)までの選択肢提示ロジックをまとめて再計算
+        cascadeRecalcChain(frontSlot, partnerSlot, p, is2WChecked);
 
-        if (fSelect) { fSelect.innerHTML = buildOptions(frontSlot, p, is2WChecked); fSelect.value = fVal; }
-        if (bSelect) { bSelect.innerHTML = buildOptions(partnerSlot, p, is2WChecked); bSelect.value = bVal; }
-
-        // 表示・連動ロジックの再計算
+        // 2. 表示・連動ロジックの再計算
         if (!is2WChecked) {
             if (bSelect) bSelect.disabled = true;
             if (bWrapper) bWrapper.classList.add("block-blackout");
@@ -186,13 +131,6 @@
             if (bSelect) bSelect.disabled = false;
             if (bWrapper) bWrapper.classList.remove("block-blackout");
         }
-
-        // 第1希望の切り替えだった場合は、他クールへ影響するため全体p1の選択肢を再計算
-        if (p === 1) { triggerAllP1Recalc(); }
-
-        // 下位希望(p+1〜8)の再計算
-        cascadeRecalcChain(frontSlot, partnerSlot, p + 1, is2WChecked);
-
         updateAnyOptions(); updateDashboard();
     }
 
@@ -208,23 +146,7 @@
             if (fEl && bEl) bEl.value = fEl.value;
         }
 
-        // 第1希望(p1)が変更された場合は、他クールのp1ドロップダウンの選択肢を制限・解放するために一斉更新
-        if (p === 1) {
-            triggerAllP1Recalc();
-        }
-
-        // 2Wモード時の横の重複排除の再計算
-        if (is2WChecked) {
-            const fSelect = document.getElementById(`${frontSlot}p${p}`);
-            const bSelect = document.getElementById(`${partnerSlot}p${p}`);
-            const fVal = fSelect ? fSelect.value : "";
-            const bVal = bSelect ? bSelect.value : "";
-            
-            if (fSelect) { fSelect.innerHTML = buildOptions(frontSlot, p, is2WChecked); fSelect.value = fVal; }
-            if (bSelect) { bSelect.innerHTML = buildOptions(partnerSlot, p, is2WChecked); bSelect.value = bVal; }
-        }
-
-        // それより下の希望順位(p+1〜8)を再計算
+        // 自分の選択が変わったことで、それより下の希望順位(p+1〜8)の重複選択肢を削るために再計算を走らせる
         cascadeRecalcChain(frontSlot, partnerSlot, p + 1, is2WChecked);
 
         updateAnyOptions(); updateDashboard();
