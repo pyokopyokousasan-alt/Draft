@@ -10,7 +10,7 @@
 </head>
 <body>
 <div class="fixed-header">
-    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.53</span></div>
+    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.54</span></div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">ログイン中：学籍番号 <span id="current-sid"></span> さん</div>
     <ul class="nav nav-tabs nav-fill" id="mainTab"><li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash">現在の状況</a></li><li class="nav-item"><a class="nav-link" id="form-tab" data-toggle="tab" href="#form">希望を入力する</a></li><li class="nav-item"><a class="nav-link" id="history-tab" data-toggle="tab" href="#history">提出履歴</a></li></ul>
 </div>
@@ -60,7 +60,7 @@
 
     function getCategory(cid) { const s = cid.toString(); return s.startsWith('1') ? 1 : s.startsWith('2') ? 2 : s.startsWith('3') ? 3 : 4; }
 
-    // 【選択肢提示の再計算ロジック】
+    // 【選択肢提示の再計算ロジック】※hybrid講座出し分け対応版
     function buildOptions(slot, p, is2WChecked) {
         const sIdx = serverSlots.indexOf(slot);
         let options = '<option value="">-- 選択してください --</option>';
@@ -69,9 +69,10 @@
         serverDepartments.forEach(d => {
             const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
             if (capacity > 0) {
-                // その行（管轄領域）の2Wチェック状態に合わせて、4W/2W専用講座をフィルタリング
-            if (is2WChecked && d.type === "4W") return;
-            if (!is2WChecked && d.type === "2W") return;
+                // 明確に使えないタイプ（モード不一致）だけを弾く。これで「hybrid」は両モードで生き残る
+                if (is2WChecked && d.type === "4W") return;
+                if (!is2WChecked && d.type === "2W") return;
+
                 const cat = getCategory(d.id), catLabel = catNames[cat] || "その他";
                 const ratio = Number(serverRatios.Slots?.[`${slot}p${p}`]?.[d.id] || 0);
                 options += `<option value="${d.id}">${ratio < 1 ? "🟢" : ratio < 2 ? "🟡" : "🔴"} [${catLabel}] ${d.name} (${ratio.toFixed(1)}倍)</option>`;
