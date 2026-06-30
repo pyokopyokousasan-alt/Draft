@@ -1,165 +1,191 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="robots" content="noindex, nofollow"><meta property="og:title" content="ページにアクセスしてください"><meta property="og:description" content="臨床実習 希望調査システム"><title>臨床実習 希望調査システム</title><link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="robots" content="noindex, nofollow"><title>臨床実習 希望調査システム</title><link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
-        body { background-color: #f4f6f9; font-size: 0.9rem; } .nav-tabs .nav-link { border-radius: 0; color: #495057; font-weight: bold; background-color: #e9ecef; } .nav-tabs .nav-link.active { background-color: #fff; color: #007bff; border-bottom-color: transparent; } .fixed-header { position: sticky; top: 0; z-index: 1020; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); } .form-section { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); } .section-title { font-size: 1rem; font-weight: bold; color: #333; border-left: 4px solid #007bff; padding-left: 8px; margin-bottom: 12px; } select.form-control { width: 100% !important; max-width: 100% !important; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; } .timeline-item { border-left: 2px solid #007bff; padding-left: 15px; position: relative; margin-bottom: 15px; } .timeline-item::before { content: ""; position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background-color: #007bff; } .slot-container { transition: opacity 0.3s ease; } 
-        /* ブラックアウト（グレーアウト）表示用の確実なCSS */
-        .row-blackout { opacity: 0.5; background-color: #e9ecef !important; pointer-events: none; } .row-blackout select { background-color: #e9ecef !important; }
+        body { background-color: #f4f6f9; font-size: 0.9rem; } .fixed-header { position: sticky; top: 0; z-index: 1020; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); } .form-section { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); } .section-title { font-size: 1rem; font-weight: bold; color: #333; border-left: 4px solid #007bff; padding-left: 8px; margin-bottom: 12px; } select.form-control { width: 100% !important; max-width: 100% !important; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; } .timeline-item { border-left: 2px solid #007bff; padding-left: 15px; position: relative; margin-bottom: 15px; } .timeline-item::before { content: ""; position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background-color: #007bff; }
+        /* 管轄領域のブラックアウト用スタイル */
+        .block-blackout { opacity: 0.5; background-color: #e9ecef !important; pointer-events: none; } .block-blackout select { background-color: #e9ecef !important; }
     </style>
 </head>
 <body>
 <div class="fixed-header">
-    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.51</span></div>
+    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.52</span></div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">ログイン中：学籍番号 <span id="current-sid"></span> さん</div>
-    <ul class="nav nav-tabs nav-fill" id="mainTab" role="tablist"><li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash" role="tab">現在の状況</a></li><li class="nav-item"><a class="nav-link" id="form-tab" data-toggle="tab" href="#form" role="tab">希望を入力する</a></li><li class="nav-item"><a class="nav-link" id="history-tab" data-toggle="tab" href="#history" role="tab">提出履歴</a></li></ul>
+    <ul class="nav nav-tabs nav-fill" id="mainTab"><li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash">現在の状況</a></li><li class="nav-item"><a class="nav-link" id="form-tab" data-toggle="tab" href="#form">希望を入力する</a></li><li class="nav-item"><a class="nav-link" id="history-tab" data-toggle="tab" href="#history">提出履歴</a></li></ul>
 </div>
 <div class="container-fluid p-3">
     <div class="tab-content" id="mainTabContent">
-        <div class="tab-pane fade show active" id="dash" role="tablist">
+        <div class="tab-pane fade show active" id="dash">
             <div id="status-alert" class="alert alert-danger text-center font-weight-bold">⚠️ まだ希望調査が提出されていません！</div>
-            <div class="card shadow-sm mb-3"><div class="card-header bg-primary text-white font-weight-bold p-2" style="font-size:0.9rem;">🌟 あなたのAny枠 通過見込み (リアルタイム累積)</div><div class="card-body p-2 bg-light" id="any-dashboard-body"><p class="text-muted text-center m-0">選択データを読み込み中...</p></div></div>
-            <div class="card shadow-sm"><div class="card-header bg-secondary text-white font-weight-bold p-2" style="font-size:0.9rem;">🗓️ 第1希望スケジュール（仮カレンダー）</div><div class="card-body p-3" id="calendar-body"><p class="text-muted text-center">データを読み込み中...</p></div></div>
+            <div class="card shadow-sm mb-3"><div class="card-header bg-primary text-white font-weight-bold p-2" style="font-size:0.9rem;">🌟 あなたのAny枠 通過見込み</div><div class="card-body p-2 bg-light" id="any-dashboard-body"></div></div>
+            <div class="card shadow-sm"><div class="card-header bg-secondary text-white font-weight-bold p-2" style="font-size:0.9rem;">🗓️ 第1希望スケジュール</div><div class="card-body p-3" id="calendar-body"></div></div>
         </div>
-        <div class="tab-pane fade" id="form" role="tabpanel">
-            <div class="card mb-3 border-warning"><div class="card-header bg-warning text-dark font-weight-bold p-2" id="headingRules" data-toggle="collapse" data-target="#collapseRules" style="cursor: pointer; font-size:0.85rem;">💡 希望提出のルール (タップで開閉 ▲)</div><div id="collapseRules" class="collapse show" data-parent="#form"><div class="card-body p-2 text-danger font-weight-bold" style="font-size:0.8rem; background-color:#fffdf6;"><ul class="pl-3 mb-0"><li>Any枠内（Any1〜Any4）重複選択不可。第一希望からのみ選択可能。</li><li>倍率は「提出者のデータ」に基づく集計です。提出するまでご自身の希望は反映されていません。</li><li>内科2以上、外科1以上、マイナー1から3、の条件を満たしていないと提出できません。</li></ul></div></div></div>
+        <div class="tab-pane fade" id="form">
             <form id="hopeForm">
-                <div class="form-section"><div class="section-title">学生情報</div><div class="form-group row m-0"><label class="col-4 col-form-label px-1 font-weight-bold">学籍番号:</label><div class="col-8 px-1"><input type="text" class="form-control form-control-sm" id="student_id" placeholder="半角数字6桁" required maxlength="6"><small id="id-lock-msg" class="text-danger font-weight-bold" style="display:none;">※学籍番号は変更できません</small></div></div></div>
+                <div class="form-section"><div class="section-title">学生情報</div><div class="form-group row m-0"><label class="col-4 col-form-label px-1 font-weight-bold">学籍番号:</label><div class="col-8 px-1"><input type="text" class="form-control form-control-sm" id="student_id" required maxlength="6"></div></div></div>
                 <div class="form-section"><div class="section-title">Any枠 希望</div><div id="any-fields-container"></div></div>
                 <div class="form-section"><div class="section-title">一般枠 希望</div><div id="slot-fields-container"></div></div>
                 <button type="button" class="btn btn-success btn-block font-weight-bold shadow mb-5" onclick="submitData()">希望を送信する</button>
             </form>
         </div>
-        <div class="tab-pane fade" id="history" role="tabpanel"><div class="alert alert-info py-2 px-3 text-center" style="font-size:0.8rem;"></div><div id="history-container"><p class="text-muted text-center">履歴はありません。</p></div></div>
+        <div class="tab-pane fade" id="history"><div id="history-container"></div></div>
     </div>
 </div>
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script><script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script><script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwy67BWTMsLnO9O6pvnEUwem5hXuqlo6_naNAj1Yvoca-LMDZ8tmwdkXSYJp8WEhnTCYA/exec"; 
-    let serverDepartments = [], serverSlots = [], serverAnyCounts = { Any1:{}, Any2:{}, Any3:{}, Any4:{} }, serverRatios = { Any: {}, Slots: {} }, liffUser = { uid: "" }; 
+    let serverDepartments = [], serverSlots = [], serverRatios = { Any: {}, Slots: {} }, liffUser = { uid: "" }; 
+
     window.onload = function() {
         liff.init({ liffId: "2010321278-kOScGbBq" }).then(() => {
             if (!liff.isLoggedIn()) { liff.login(); } else {
-                liff.getProfile().then(profile => { liffUser.uid = profile.userId; initializeApp(); }).catch(err => { alert("LINEプロフィールの取得に失敗しました。"); });
+                liff.getProfile().then(profile => { liffUser.uid = profile.userId; initializeApp(); });
             }
-        }).catch(err => { alert("LIFFの初期化に失敗しました。"); });
+        });
     };
+
     function initializeApp() {
-        if (!liffUser.uid) return;
         fetch(`${GAS_API_URL}?uid=${liffUser.uid}`).then(res => res.json()).then(data => {
-            if (!data.success) { alert("サーバーエラー: " + data.message); return; }
-            serverDepartments = data.departments; serverSlots = data.slots; serverAnyCounts = data.anyCounts || {}; serverRatios = data.ratios;
+            if (!data.success) return;
+            serverDepartments = data.departments; serverSlots = data.slots; serverRatios = data.ratios;
             buildFormFields();
-            // 初期状態で、すべての「前半」スロットの各希望行に対してトグル処理を実行し、後半を正しくロックする
-            serverSlots.forEach(s => { if(s.includes("前半")) for(let p=1;p<=8;p++) handle2WRowToggle(s,p); });
-            renderHistory(data.history);
             if (data.history && data.history.length > 0) {
-                const latest = data.history[0], sidInput = document.getElementById("student_id");
-                sidInput.value = latest.student_id; sidInput.disabled = true; sidInput.classList.add("bg-secondary", "text-white");
-                document.getElementById("id-lock-msg").style.display = "block"; document.getElementById("login-info").style.display = "block";
-                document.getElementById("current-sid").innerText = latest.student_id; applyFormValues(latest);
-                document.getElementById("status-alert").className = "alert alert-success text-center font-weight-bold";
-                document.getElementById("status-alert").innerHTML = "🎉 希望調査は提出済みです（変更可能）";
+                const latest = data.history[0]; document.getElementById("student_id").value = latest.student_id;
+                applyFormValues(latest);
             }
             updateAnyOptions(); updateDashboard();
-        }).catch(err => { alert("データの読み込みに失敗しました。" + err); });
+        });
     }
+
     function getCategory(cid) { const s = cid.toString(); return s.startsWith('1') ? 1 : s.startsWith('2') ? 2 : s.startsWith('3') ? 3 : 4; }
-    function buildDeptOptionsSlot(slot, pNum) {
-        const sIdx = serverSlots.indexOf(slot); let options = '<option value="">-- 選択してください --</option>'; const catNames = ["", "内科", "外科", "マイナー", "その他"];
+
+    // 【データ提示の再計算】選択肢のフィルタリングロジック
+    function buildOptions(slot, p, is2WChecked) {
+        const sIdx = serverSlots.indexOf(slot);
+        let options = '<option value="">-- 選択してください --</option>';
+        const catNames = ["", "内科", "外科", "マイナー", "その他"];
+        
         serverDepartments.forEach(d => {
             const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
             if (capacity > 0) {
-                const cat = getCategory(d.id), catLabel = (cat >= 0 && cat < catNames.length) ? catNames[cat] : "その他", slotKey = `${slot}p${pNum}`, ratio = Number(serverRatios.Slots?.[slotKey]?.[d.id] || 0);
+                // 2Wチェックの状態に合わせ、提示する選択肢のタイプを再計算
+                if (is2WChecked && d.type === "4W") return; 
+                if (!is2WChecked && d.type === "2W") return; 
+
+                const cat = getCategory(d.id), catLabel = catNames[cat] || "その他";
+                const ratio = Number(serverRatios.Slots?.[`${slot}p${p}`]?.[d.id] || 0);
                 options += `<option value="${d.id}">${ratio < 1 ? "🟢" : ratio < 2 ? "🟡" : "🔴"} [${catLabel}] ${d.name} (${ratio.toFixed(1)}倍)</option>`;
             }
         });
         return options;
     }
-    // 前半のセレクトボックス値が変更された時、4Wモードなら後半へリアルタイム強制同期
-    function handle4WLock(baseSlot, p) {
-        const chk = document.getElementById(`2w_${baseSlot}p${p}`);
-        if (!chk || !chk.checked) {
-            const fEl = document.getElementById(`${baseSlot}p${p}`), partnerSlot = baseSlot.replace("前半", "後半"), bEl = document.getElementById(`${partnerSlot}p${p}`);
-            if (fEl && bEl) { bEl.value = fEl.value; }
-        }
-        updateAnyOptions(); updateDashboard();
-    }
-    // チェックボックス切り替え時のメイン処理（対象：後半スロットの行ラッパーおよび要素）
-    function handle2WRowToggle(baseSlot, p) {
-        const chk = document.getElementById(`2w_${baseSlot}p${p}`), partnerSlot = baseSlot.replace("前半", "後半"), fEl = document.getElementById(`${baseSlot}p${p}`), bEl = document.getElementById(`${partnerSlot}p${p}`), bWrapper = document.getElementById(`wrapper_${partnerSlot}p${p}`);
-        const is2WMode = !!(chk && chk.checked);
-        if (!is2WMode) {
-            if (bEl) { bEl.disabled = true; } 
-            if (bWrapper) { bWrapper.classList.add("row-blackout"); } // 視覚的・操作的に完全にブラックアウト
-            if (fEl && bEl) { bEl.value = fEl.value; } // OFFにした瞬間に前半の値を後半へ強制コピー
+
+    // 【管轄領域の再計算・再描画】2Wチェック変更時にそのペア行だけを処理
+    function recalcRowDomain(frontSlot, partnerSlot, p) {
+        const chk = document.getElementById(`2w_${frontSlot}p${p}`);
+        const is2WChecked = !!(chk && chk.checked);
+
+        const fSelect = document.getElementById(`${frontSlot}p${p}`);
+        const bSelect = document.getElementById(`${partnerSlot}p${p}`);
+        const bWrapper = document.getElementById(`wrapper_${partnerSlot}p${p}`);
+
+        // 1. 前半・後半それぞれの選択肢提示ロジックを再計算して適用
+        const fSelectedVal = fSelect ? fSelect.value : "";
+        const bSelectedVal = bSelect ? bSelect.value : "";
+
+        if (fSelect) { fSelect.innerHTML = buildOptions(frontSlot, p, is2WChecked); fSelect.value = fSelectedVal; }
+        if (bSelect) { bSelect.innerHTML = buildOptions(partnerSlot, p, is2WChecked); bSelect.value = bSelectedVal; }
+
+        // 2. 表示（ブラックアウト・同期）ロジックの再計算
+        if (!is2WChecked) {
+            if (bSelect) { bSelect.disabled = true; if (fSelect) bSelect.value = fSelect.value; }
+            if (bWrapper) bWrapper.classList.add("block-blackout");
         } else {
-            if (bEl) { bEl.disabled = false; } 
-            if (bWrapper) { bWrapper.classList.remove("row-blackout"); } // ブラックアウト解除
+            if (bSelect) bSelect.disabled = false;
+            if (bWrapper) bWrapper.classList.remove("block-blackout");
         }
         updateAnyOptions(); updateDashboard();
     }
+
+    // 前半のドロップダウン変更時のコピーロジック（4W時のみ）
+    function handleFrontChange(frontSlot, partnerSlot, p) {
+        const chk = document.getElementById(`2w_${frontSlot}p${p}`);
+        if (!chk || !chk.checked) {
+            const fEl = document.getElementById(`${frontSlot}p${p}`);
+            const bEl = document.getElementById(`${partnerSlot}p${p}`);
+            if (fEl && bEl) bEl.value = fEl.value;
+        }
+        updateAnyOptions(); updateDashboard();
+    }
+
     function buildFormFields() {
         let anyHtml = ""; for (let i = 1; i <= 4; i++) { anyHtml += `<div class="form-group row mb-2"><label class="col-4 col-form-label font-weight-bold">Any${i}:</label><div class="col-8"><select class="form-control" id="Any${i}" onchange="updateDashboard()"><option value="">-- 選択してください --</option></select></div></div>`; }
         document.getElementById("any-fields-container").innerHTML = anyHtml;
+
         let slotHtml = "";
-        serverSlots.forEach(slot => {
-            const isFirstHalf = slot.includes("前半");
-            slotHtml += `<div class="border p-2 mb-2 rounded bg-light slot-container" id="container_${slot}"><div class="d-flex justify-content-between align-items-center mb-1"><span class="badge badge-dark">${slot}</span></div><div id="fields_${slot}">`;
+        // 前半・後半のペアを確実に捉えるループ構造
+        for (let i = 0; i < serverSlots.length; i++) {
+            const slot = serverSlots[i];
+            if (!slot.includes("前半")) KakuhaiHtml(slot); continue; // 後半はスキップし、前半の処理内でペア生成
+            const partnerSlot = serverSlots[i+1] || "";
+
+            slotHtml += `<div class="border p-2 mb-2 rounded bg-light">
+                <div class="mb-1"><span class="badge badge-primary">${slot.replace("前半","")} (前後半ペア領域)</span></div>`;
+            
             for (let p = 1; p <= 8; p++) {
-                const fClass = p === 1 ? "font-weight-bold" : "text-muted", opt2W = isFirstHalf ? `<div class="custom-control custom-checkbox ml-2 d-inline-block"><input type="checkbox" class="custom-control-input" id="2w_${slot}p${p}" onchange="handle2WRowToggle('${slot}', ${p})"><label class="custom-control-label font-weight-bold text-primary" for="2w_${slot}p${p}" style="font-size:0.75rem; cursor:pointer;">2W</label></div>` : "";
-                const onChangeStr = isFirstHalf ? `handle4WLock('${slot}', ${p});` : `updateAnyOptions(); updateDashboard();`;
-                // 各行ごとに固有のラッパーID（wrapper_第1クール前半p1, wrapper_第1クール後半p1 など）を正確に付与
-                slotHtml += `<div class="form-group row mb-1 align-items-center" id="wrapper_${slot}p${p}"><div class="col-4 pr-0 d-flex align-items-center justify-content-between"><label class="${fClass} mb-0" style="font-size:0.8rem;">第${p}希望:</label>${opt2W}</div><div class="col-8"><select class="form-control form-control-sm" id="${slot}p${p}" onchange="${onChangeStr}">${buildDeptOptionsSlot(slot, p)}</select></div></div>`;
+                // 前半行の組み立て
+                slotHtml += `<div class="form-group row mb-1 align-items-center" id="wrapper_${slot}p${p}">
+                    <div class="col-4 pr-0 d-flex align-items-center justify-content-between">
+                        <label class="mb-0 text-dark font-weight-bold" style="font-size:0.8rem;">第${p}希望(前):</label>
+                        <div class="custom-control custom-checkbox ml-2"><input type="checkbox" class="custom-control-input" id="2w_${slot}p${p}" onchange="recalcRowDomain('${slot}', '${partnerSlot}', ${p})"><label class="custom-control-label text-primary font-weight-bold" for="2w_${slot}p${p}" style="font-size:0.75rem; cursor:pointer;">2W</label></div>
+                    </div>
+                    <div class="col-8"><select class="form-control form-control-sm" id="${slot}p${p}" onchange="handleFrontChange('${slot}', '${partnerSlot}', ${p})">${buildOptions(slot, p, false)}</select></div>
+                </div>`;
+
+                // 後半行の組み立て（初期状態でブラックアウト状態にする）
+                slotHtml += `<div class="form-group row mb-1 align-items-center block-blackout" id="wrapper_${partnerSlot}p${p}">
+                    <div class="col-4 pr-0"><label class="mb-0 text-muted" style="font-size:0.8rem;">第${p}希望(後):</label></div>
+                    <div class="col-8"><select class="form-control form-control-sm" id="${partnerSlot}p${p}" disabled onchange="updateAnyOptions(); updateDashboard();">${buildOptions(partnerSlot, p, false)}</select></div>
+                </div><hr class="my-1">`;
             }
-            slotHtml += `</div></div>`; 
-        });
+            slotHtml += `</div>`;
+        }
         document.getElementById("slot-fields-container").innerHTML = slotHtml;
     }
+    function KakuhaiHtml(s) {} // ループ用ダミー
+
     function applyFormValues(data) {
         for (let p = 1; p <= 4; p++) { if (data[`Any${p}`]) document.getElementById(`Any${p}`).value = data[`Any${p}`]; }
-        serverSlots.forEach(slot => {
-            if (slot.includes("前半")) {
-                for (let p = 1; p <= 8; p++) {
-                    if (data[`2w_${slot}p${p}`] !== undefined) {
-                        const chk = document.getElementById(`2w_${slot}p${p}`);
-                        if (chk) { chk.checked = !!data[`2w_${slot}p${p}`]; handle2WRowToggle(slot, p); }
-                    }
+        for (let i = 0; i < serverSlots.length; i++) {
+            const slot = serverSlots[i]; if (!slot.includes("前半")) continue;
+            const partnerSlot = serverSlots[i+1] || "";
+            for (let p = 1; p <= 8; p++) {
+                if (data[`2w_${slot}p${p}`] !== undefined) {
+                    const chk = document.getElementById(`2w_${slot}p${p}`);
+                    if (chk) { chk.checked = !!data[`2w_${slot}p${p}`]; recalcRowDomain(slot, partnerSlot, p); }
                 }
+                if (data[`${slot}p${p}`]) document.getElementById(`${slot}p${p}`).value = data[`${slot}p${p}`];
+                if (data[`${partnerSlot}p${p}`]) document.getElementById(`${partnerSlot}p${p}`).value = data[`${partnerSlot}p${p}`];
+                recalcRowDomain(slot, partnerSlot, p);
             }
-            for (let p = 1; p <= 8; p++) { let key = `${slot}p${p}`; if (data[key] && document.getElementById(key)) document.getElementById(key).value = data[key]; }
-        });
+        }
     }
+
     function updateDashboard() {
         let calHtml = "";
         serverSlots.forEach(slot => {
             let el = document.getElementById(`${slot}p1`), val = el ? el.value : "", dept = serverDepartments.find(d => d.id == val);
             let name = dept ? dept.name : '<span class="text-muted">未選択</span>';
-            let ratio = Number(serverRatios.Slots?.[`${slot}p1`]?.[val] || 0); let ratioStr = val ? ` <small class="text-danger">[倍率: ${ratio.toFixed(1)}倍]</small>` : "";
-            calHtml += `<div class="timeline-item"><div class="font-weight-bold" style="font-size:0.85rem;">${slot}クール</div><div class="text-primary font-weight-bold" style="font-size:0.9rem;">${name}${ratioStr}</div></div>`;
+            let ratio = Number(serverRatios.Slots?.[`${slot}p1`]?.[val] || 0);
+            calHtml += `<div class="timeline-item"><div class="font-weight-bold" style="font-size:0.85rem;">${slot}</div><div class="text-primary font-weight-bold" style="font-size:0.9rem;">${name} <small class="text-danger">[${ratio.toFixed(1)}倍]</small></div></div>`;
         });
         document.getElementById("calendar-body").innerHTML = calHtml;
-        let anyHtml = ""; const anyKeys = ["Any1", "Any2", "Any3", "Any4"];
-        anyKeys.forEach((key, idx) => {
-            let el = document.getElementById(key), val = el ? el.value : ""; if (!val) { anyHtml += `<div class="p-1 text-muted border-bottom" style="font-size:0.8rem;">Any枠 ${idx+1}: 未選択</div>`; return; }
-            let dept = serverDepartments.find(d => d.id == val); if (!dept) return;
-            let ratio = Number(serverRatios.Any?.[`Any${idx+1}`]?.[val] || 0), badge = ratio <= 1.0 ? `<span class="badge badge-success px-2 py-1">見込み: 高</span>` : ratio <= 1.5 ? `<span class="badge badge-warning px-2 py-1">見込み: 中</span>` : `<span class="badge badge-danger px-2 py-1">見込み: 低</span>`;
-            anyHtml += `<div class="p-2 border-bottom bg-white rounded mb-1"><div class="d-flex justify-content-between align-items-center"><span class="font-weight-bold text-dark" style="font-size:0.85rem;">Any${idx+1}: ${dept.name}</span>${badge}</div><div class="text-muted" style="font-size:0.75rem;">累積枠倍率: ${ratio}倍</div></div>`;
-        });
-        document.getElementById("any-dashboard-body").innerHTML = anyHtml;
     }
-    function renderHistory(history) {
-        if (!history || history.length === 0) return; let html = "";
-        history.forEach((h, idx) => {
-            html += `<div class="card mb-2 shadow-sm"><div class="card-header p-2 bg-light d-flex justify-content-between align-items-center" style="font-size:0.8rem;"><strong>${h.timestamp}</strong></div><div class="card-body p-2" style="font-size:0.75rem;"><div>学籍番号: <strong>${h.student_id}</strong></div></div></div>`;
-        });
-        document.getElementById("history-container").innerHTML = html;
-    }
+
     function updateAnyOptions() {
         let selectedP1Ids = [];
-        serverSlots.forEach(slot => {
-            let el = document.getElementById(`${slot}p1`); if (el && el.value) selectedP1Ids.push(el.value);
-        });
+        serverSlots.forEach(slot => { let el = document.getElementById(`${slot}p1`); if (el && el.value) selectedP1Ids.push(el.value); });
         let uniqueP1Ids = [...new Set(selectedP1Ids)];
         for (let p = 1; p <= 4; p++) {
             let anyEl = document.getElementById(`Any${p}`); if (!anyEl) continue;
@@ -168,51 +194,27 @@
             anyEl.innerHTML = optionsHtml; anyEl.value = uniqueP1Ids.includes(currentVal) ? currentVal : "";
         }
     }
+
     function submitData() {
-        const sidInput = document.getElementById("student_id"), studentId = sidInput.value.trim();
-        if (!/^\d{6}$/.test(studentId)) { alert("エラー：学籍番号は必ず「半角数字6桁」で入力してください。"); return; }
-        for (let i = 0; i < serverSlots.length; i++) {
-            let slot = serverSlots[i];
-            if (slot.includes("後半")) { const baseSlot = slot.replace("後半", "前半"); let hasUnchecked = false; for(let p=1;p<=8;p++){ const chk = document.getElementById(`2w_${baseSlot}p${p}`); if(chk && !chk.checked) hasUnchecked = true; } if(hasUnchecked) continue; }
-            if (!(document.getElementById(`${slot}p1`) ? document.getElementById(`${slot}p1`).value : "")) { alert(`エラー：${slot}の「第1希望(p1)」が選択されていません。`); return; }
-        }
-        let catCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
-        serverSlots.forEach(slot => {
-            let p1El = document.getElementById(`${slot}p1`); if (p1El && p1El.value) { let dept = serverDepartments.find(d => d.id == p1El.value); if (dept) catCounts[getCategory(dept.id)]++; }
-        });
-        if (catCounts[1] < 2) { alert("エラー：院内内科(1000番台)を2クール以上選択してください。"); return; }
-        if (catCounts[2] < 1) { alert("エラー：院内外科(2000番台)を1クール以上選択してください。"); return; }
-        if (catCounts[3] < 1 || catCounts[3] > 3) { alert("エラー：院内マイナー科(3000番台)は1〜3クールの範囲で選択してください。"); return; }
-        let anyValues = []; for (let p = 1; p <= 4; p++) { let val = document.getElementById(`Any${p}`).value; if (val) { if (anyValues.includes(val)) { alert("エラー：Any枠の中で同じ講座を重複して選択することはできません。"); return; } anyValues.push(val); } }
-        for (let i = 0; i < serverSlots.length; i++) {
-            let slot = serverSlots[i]; if (!slot.includes("前半")) continue;
-            let partnerSlot = slot.replace("前半", "後半");
-            for (let p = 1; p <= 8; p++) {
-                let chk = document.getElementById(`2w_${slot}p${p}`);
-                if (!chk || !chk.checked) {
-                    let val1 = document.getElementById(`${slot}p${p}`)?.value || "", val2 = document.getElementById(`${partnerSlot}p${p}`)?.value || "";
-                    if (val1 !== val2) { alert(`エラー：${slot.replace("前半","")}クール第${p}希望(4W設定)の前後半が一致していません。`); return; }
-                }
-            }
-        }
-        for (const slot of serverSlots) {
-            const used = [];
-            for (let p = 1; p <= 8; p++) {
-                if (slot.includes("後半")) { const baseSlot = slot.replace("後半", "前半"), chk = document.getElementById(`2w_${baseSlot}p${p}`); if (chk && !chk.checked) continue; }
-                const val = document.getElementById(`${slot}p${p}`).value; if (!val) continue;
-                if (used.includes(val)) { alert(`${slot}では同じ講座を複数順位に設定できません。`); return; } used.push(val);
-            }
-        }
+        const studentId = document.getElementById("student_id").value.trim();
+        if (!/^\d{6}$/.test(studentId)) { alert("学籍番号は半角数字6桁です。"); return; }
+        
         let payload = { line_uid: liffUser.uid, student_id: studentId };
         for (let p = 1; p <= 4; p++) payload[`Any${p}`] = document.getElementById(`Any${p}`).value;
-        serverSlots.forEach(slot => {
-            if (slot.includes("前半")) { for (let p = 1; p <= 8; p++) payload[`2w_${slot}p${p}`] = !!(document.getElementById(`2w_${slot}p${p}`) && document.getElementById(`2w_${slot}p${p}`).checked); }
-            for (let p = 1; p <= 8; p++) payload[`${slot}p${p}`] = document.getElementById(`${slot}p${p}`).value;
-        });
-        if (!confirm("希望データを送信します。よろしいですか？")) return;
+        
+        for (let i = 0; i < serverSlots.length; i++) {
+            const slot = serverSlots[i]; if (!slot.includes("前半")) continue;
+            const partnerSlot = serverSlots[i+1] || "";
+            for (let p = 1; p <= 8; p++) {
+                payload[`2w_${slot}p${p}`] = !!(document.getElementById(`2w_${slot}p${p}`) && document.getElementById(`2w_${slot}p${p}`).checked);
+                payload[`${slot}p${p}`] = document.getElementById(`${slot}p${p}`).value;
+                payload[`${partnerSlot}p${p}`] = document.getElementById(`${partnerSlot}p${p}`).value;
+            }
+        }
+        if (!confirm("送信しますか？")) return;
         payload["access_token"] = liff.getAccessToken();     
         fetch(GAS_API_URL, { method: "POST", mode: "cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload) })
-            .then(res => res.json()).then(res => { alert(res.message); if (res.success) initializeApp(); }).catch(err => alert("通信エラーが発生しました。" + err));
+            .then(res => res.json()).then(res => { alert(res.message); initializeApp(); });
     }
 </script>
 </body>
