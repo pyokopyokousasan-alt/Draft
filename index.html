@@ -8,7 +8,7 @@
 </head>
 <body>
 <div class="fixed-header">
-    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.39</span></div>
+    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.41</span></div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">ログイン中：学籍番号 <span id="current-sid"></span> さん</div>
     <ul class="nav nav-tabs nav-fill" id="mainTab" role="tablist"><li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash" role="tab">現在の状況</a></li><li class="nav-item"><a class="nav-link" id="form-tab" data-toggle="tab" href="#form" role="tab">希望を入力する</a></li><li class="nav-item"><a class="nav-link" id="history-tab" data-toggle="tab" href="#history" role="tab">提出履歴</a></li></ul>
 </div>
@@ -55,16 +55,18 @@
                 document.getElementById("current-sid").innerText = latest.student_id; applyFormValues(latest);
                 document.getElementById("status-alert").className = "alert alert-success text-center font-weight-bold";
                 document.getElementById("status-alert").innerHTML = "🎉 希望調査は提出済みです（変更可能）";
-            }
+            } else { serverSlots.forEach(s => { if(s.includes("前半")) handle2WToggle(s); }); }
             updateAnyOptions(); updateDashboard();
         }).catch(err => { alert("データの読み込みに失敗しました。再読み込みしてください。" + err); });
     }
     function getCategory(cid) { const s = cid.toString(); return s.startsWith('1') ? 1 : s.startsWith('2') ? 2 : s.startsWith('3') ? 3 : 4; }
     function buildDeptOptionsSlot(slot, pNum) {
         const sIdx = serverSlots.indexOf(slot); let options = '<option value="">-- 選択してください --</option>'; const catNames = ["", "内科", "外科", "マイナー", "その他"];
+        const isFirstHalf = slot.includes("前半"), baseSlot = isFirstHalf ? slot : slot.replace("後半", "前半"), chk = document.getElementById(`2w_${baseSlot}`), is2WMode = chk ? chk.checked : false;
         serverDepartments.forEach(d => {
             const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
             if (capacity > 0) {
+                if (is2WMode && d.type === "4W") return; if (!is2WMode && d.type === "2W") return;
                 const cat = getCategory(d.id), catLabel = (cat >= 0 && cat < catNames.length) ? catNames[cat] : "その他", slotKey = `${slot}p${pNum}`, ratio = Number(serverRatios.Slots?.[slotKey]?.[d.id] || 0);
                 let statusIcon = ratio < 1 ? "🟢" : ratio < 2 ? "🟡" : "🔴";
                 options += `<option value="${d.id}">${statusIcon} [${catLabel}] ${d.name} (${ratio.toFixed(1)}倍)</option>`;
@@ -74,20 +76,31 @@
     }
     function handle4WLock(slot, p) {
         const myEl = document.getElementById(`${slot}p${p}`); if (!myEl) return;
-        const dept = serverDepartments.find(d => d.id == myEl.value), partnerSlot = slot.includes("前半") ? slot.replace("前半", "後半") : slot.replace("後半", "前半"), partnerEl = document.getElementById(`${partnerSlot}p${p}`);
-        if (!partnerEl) return;
-        if (dept && dept.type === "4W") { partnerEl.value = dept.id; partnerEl.disabled = true; } else { if (partnerEl.disabled) { partnerEl.value = ""; } partnerEl.disabled = false; }
+        const isFirstHalf = slot.includes("前半"), baseSlot = isFirstHalf ? slot : slot.replace("後半", "前半"), chk = document.getElementById(`2w_${baseSlot}`);
+        if (isFirstHalf && (!chk || !chk.checked)) {
+            const partnerSlot = slot.replace("前半", "後半"), partnerEl = document.getElementById(`${partnerSlot}p${p}`);
+            if (partnerEl) { partnerEl.value = myEl.value; partnerEl.disabled = true; }
+        }
+        updateAnyOptions(); updateDashboard();
+    }
+    function handle2WToggle(baseSlot) {
+        const chk = document.getElementById(`2w_${baseSlot}`), partnerSlot = baseSlot.replace("前半", "後半");
+        for (let p = 1; p <= 8; p++) {
+            const fEl = document.getElementById(`${baseSlot}p${p}`), bEl = document.getElementById(`${partnerSlot}p${p}`);
+            if (fEl) { fEl.innerHTML = buildDeptOptionsSlot(baseSlot, p); fEl.value = ""; }
+            if (bEl) { bEl.innerHTML = buildDeptOptionsSlot(partnerSlot, p); bEl.value = ""; bEl.disabled = (!chk || !chk.checked); }
+        }
         updateAnyOptions(); updateDashboard();
     }
     function toggleSlotFixed(slot) {
-        const isFixed = document.getElementById(`fixed_${slot}`).checked, container = document.getElementById(`fields_${slot}`);
+        const isFixed = document.getElementById(`fixed_${slot}`).checked, container = document.getElementById(`fields_${slot}`), isFirstHalf = slot.includes("前半"), baseSlot = isFirstHalf ? slot : slot.replace("後半", "前半"), chk = document.getElementById(`2w_${baseSlot}`);
         if (isFixed) {
             container.classList.add("slot-blackout");
             for (let p = 1; p <= 8; p++) { const el = document.getElementById(`${slot}p${p}`); if (el) { el.value = ""; el.disabled = true; } }
         } else {
             container.classList.remove("slot-blackout");
-            for (let p = 1; p <= 8; p++) { const el = document.getElementById(`${slot}p${p}`); if (el) { el.disabled = false; } }
-            handle4WLock(slot, 1); 
+            for (let p = 1; p <= 8; p++) { const el = document.getElementById(`${slot}p${p}`); if (el) { el.disabled = (slot.includes("後半") && (!chk || !chk.checked)); } }
+            if (isFirstHalf) handle4WLock(slot, 1); 
         }
         updateAnyOptions(); updateDashboard();
     }
@@ -96,7 +109,8 @@
         document.getElementById("any-fields-container").innerHTML = anyHtml;
         let slotHtml = "";
         serverSlots.forEach(slot => {
-            slotHtml += `<div class="border p-2 mb-2 rounded bg-light slot-container" id="container_${slot}"><div class="d-flex justify-content-between align-items-center mb-1"><span class="badge badge-dark">${slot}</span><div class="custom-control custom-checkbox"><input type="checkbox" class="custom-control-input" id="fixed_${slot}" onchange="toggleSlotFixed('${slot}')"><label class="custom-control-label font-weight-bold text-danger" for="fixed_${slot}" style="font-size:0.85rem; cursor:pointer;">すでに決まっている</label></div></div><div id="fields_${slot}"><div class="form-group row mb-1 align-items-center"><label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(p1):</label><div class="col-8"><select class="form-control form-control-sm slot-p1" id="${slot}p1" onchange="handle4WLock('${slot}', 1); updateAnyOptions(); updateDashboard();">${buildDeptOptionsSlot(slot, 1)}</select></div></div>`;
+            const isFirstHalf = slot.includes("前半"), opt2W = isFirstHalf ? `<div class="custom-control custom-checkbox ml-2"><input type="checkbox" class="custom-control-input" id="2w_${slot}" onchange="handle2WToggle('${slot}')"><label class="custom-control-label font-weight-bold text-primary" for="2w_${slot}" style="font-size:0.85rem; cursor:pointer;">2W実習</label></div>` : "";
+            slotHtml += `<div class="border p-2 mb-2 rounded bg-light slot-container" id="container_${slot}"><div class="d-flex justify-content-between align-items-center mb-1"><div class="d-flex align-items-center"><span class="badge badge-dark">${slot}</span>${opt2W}</div><div class="custom-control custom-checkbox"><input type="checkbox" class="custom-control-input" id="fixed_${slot}" onchange="toggleSlotFixed('${slot}')"><label class="custom-control-label font-weight-bold text-danger" for="fixed_${slot}" style="font-size:0.85rem; cursor:pointer;">すでに決まっている</label></div></div><div id="fields_${slot}"><div class="form-group row mb-1 align-items-center"><label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(p1):</label><div class="col-8"><select class="form-control form-control-sm slot-p1" id="${slot}p1" onchange="handle4WLock('${slot}', 1); updateAnyOptions(); updateDashboard();">${buildDeptOptionsSlot(slot, 1)}</select></div></div>`;
             for (let p = 2; p <= 8; p++) { slotHtml += `<div class="form-group row mb-1 align-items-center"><label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(p${p}):</label><div class="col-8"><select class="form-control form-control-sm" id="${slot}p${p}" onchange="handle4WLock('${slot}', ${p}); updateDashboard();">${buildDeptOptionsSlot(slot, p)}</select></div></div>`; }
             slotHtml += `</div></div>`; 
         });
@@ -108,6 +122,7 @@
             if (data[`${slot}p1`] === "FIXED") {
                 let checkEl = document.getElementById(`fixed_${slot}`); if (checkEl) { checkEl.checked = true; toggleSlotFixed(slot); }
             } else {
+                if (slot.includes("前半") && data[`2w_${slot}`] !== undefined) { document.getElementById(`2w_${slot}`).checked = data[`2w_${slot}`]; handle2WToggle(slot); }
                 for (let p = 1; p <= 8; p++) { let key = `${slot}p${p}`; if (data[key] && document.getElementById(key)) document.getElementById(key).value = data[key]; }
             }
         });
@@ -161,7 +176,8 @@
         if (!/^\d{6}$/.test(studentId)) { alert("エラー：学籍番号は必ず「半角数字6桁」で入力してください。"); return; }
         for (let i = 0; i < serverSlots.length; i++) {
             let slot = serverSlots[i]; if (document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked) continue;
-            if (!(document.getElementById(`${slot}p1`) ? document.getElementById(`${slot}p1`).value : "")) { alert(`エラー：${slot}の「第1希望(p1)」が選択されていません。すべてのクールの第1希望を入力するか、「すでに決まっている」にチェックを入れて送信してください。`); return; }
+            if (slot.includes("後半")) { const baseSlot = slot.replace("後半", "前半"), chk = document.getElementById(`2w_${baseSlot}`); if (chk && !chk.checked) continue; }
+            if (!(document.getElementById(`${slot}p1`) ? document.getElementById(`${slot}p1`).value : "")) { alert(`エラー：${slot}の「第1希望(p1)」が選択されていません。`); return; }
         }
         let catCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
         serverSlots.forEach(slot => {
@@ -178,15 +194,17 @@
         }
         for (let i = 0; i < serverSlots.length; i++) {
             let slot = serverSlots[i]; if (!slot.includes("前半") || (document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked)) continue;
-            let partnerSlot = slot.replace("前半", "後半");
-            for (let p = 1; p <= 8; p++) {
-                let val1 = document.getElementById(`${slot}p${p}`) ? document.getElementById(`${slot}p${p}`).value : "", val2 = document.getElementById(`${partnerSlot}p${p}`) ? document.getElementById(`${partnerSlot}p${p}`).value : "";
-                let dept1 = serverDepartments.find(d => d.id == val1), dept2 = serverDepartments.find(d => d.id == val2);
-                if (((dept1 && dept1.type === "4W") || (dept2 && dept2.type === "4W")) && val1 !== val2) { alert(`エラー：${slot.replace("前半","")}クールの第${p}希望に4週間(4W)の講座が含まれています。前半と後半には必ず同じ講座を選択してください。`); return; }
+            let partnerSlot = slot.replace("前半", "後半"), chk = document.getElementById(`2w_${slot}`);
+            if (!chk || !chk.checked) {
+                for (let p = 1; p <= 8; p++) {
+                    let val1 = document.getElementById(`${slot}p${p}`) ? document.getElementById(`${slot}p${p}`).value : "", val2 = document.getElementById(`${partnerSlot}p${p}`) ? document.getElementById(`${partnerSlot}p${p}`).value : "";
+                    if (val1 !== val2) { alert(`エラー：${slot.replace("前半","")}クール(4W設定)の第${p}希望の前後半が一致していません。`); return; }
+                }
             }
         }
         for (const slot of serverSlots) {
             if (document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked) continue;
+            if (slot.includes("後半")) { const baseSlot = slot.replace("後半", "前半"), chk = document.getElementById(`2w_${baseSlot}`); if (chk && !chk.checked) continue; }
             const used = [];
             for (let p = 1; p <= 8; p++) {
                 const val = document.getElementById(`${slot}p${p}`).value; if (!val) continue;
@@ -197,6 +215,7 @@
         for (let p = 1; p <= 4; p++) payload[`Any${p}`] = document.getElementById(`Any${p}`).value;
         serverSlots.forEach(slot => {
             let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
+            if (slot.includes("前半")) payload[`2w_${slot}`] = !!(document.getElementById(`2w_${slot}`) && document.getElementById(`2w_${slot}`).checked);
             for (let p = 1; p <= 8; p++) payload[`${slot}p${p}`] = isFixed ? "FIXED" : document.getElementById(`${slot}p${p}`).value;
         });
         if (!confirm("希望データを送信します。よろしいですか？")) return;
