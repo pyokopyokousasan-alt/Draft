@@ -64,15 +64,14 @@
     function buildOptions(slot, p, is2WChecked) {
         const sIdx = serverSlots.indexOf(slot);
         let options = '<option value="">-- 選択してください --</option>';
-        const catNames = ["", "内科", "外科", "マイナー", "その他"];
+        const catNames = ["", "内科", "外科", "マイナー", "院外"];
         
         serverDepartments.forEach(d => {
             const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
             if (capacity > 0) {
                 // その行（管轄領域）の2Wチェック状態に合わせて、4W/2W専用講座をフィルタリング
-                if (is2WChecked && d.type === "4W") return; 
-                if (!is2WChecked && d.type === "2W") return; 
-
+            if (is2WChecked && d.type === "4W") return;
+            if (!is2WChecked && d.type === "2W") return;
                 const cat = getCategory(d.id), catLabel = catNames[cat] || "その他";
                 const ratio = Number(serverRatios.Slots?.[`${slot}p${p}`]?.[d.id] || 0);
                 options += `<option value="${d.id}">${ratio < 1 ? "🟢" : ratio < 2 ? "🟡" : "🔴"} [${catLabel}] ${d.name} (${ratio.toFixed(1)}倍)</option>`;
