@@ -26,7 +26,7 @@
 
 <div class="fixed-header">
     <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">
-        臨床実習 希望調査システム <span class="badge badge-info">ver0.43</span>
+        臨床実習 希望調査システム <span class="badge badge-info">ver0.58</span>
     </div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">
         ログイン中：学籍番号 <span id="current-sid"></span> さん
@@ -37,6 +37,7 @@
         <li class="nav-item"><a class="nav-link" id="history-tab" data-toggle="tab" href="#history" role="tab">提出履歴</a></li>
     </ul>
 </div>
+
 <div class="container-fluid p-3">
     <div class="tab-content" id="mainTabContent">
         <div class="tab-pane fade show active" id="dash" role="tablist">
@@ -100,15 +101,16 @@
                 <button type="button" class="btn btn-success btn-block font-weight-bold shadow mb-5" onclick="submitData()">希望を送信する</button>
             </form>
         </div>
+
         <div class="tab-pane fade" id="history" role="tabpanel">
-            <div class="alert alert-info py-2 px-3 text-center" style="font-size:0.8rem;">
-            </div>
+            <div class="alert alert-info py-2 px-3 text-center" style="font-size:0.8rem;">提出履歴ログ</div>
             <div id="history-container">
                 <p class="text-muted text-center">履歴はありません。</p>
             </div>
         </div>
     </div>
 </div>
+
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -119,6 +121,7 @@
     let serverAnyCounts = { Any1:{}, Any2:{}, Any3:{}, Any4:{} };
     let serverRatios = { Any: {}, Slots: {} };
     let liffUser = { uid: "" }; 
+
     window.onload = function() {
         liff.init({ liffId: "2010321278-kOScGbBq" })
             .then(() => {
@@ -139,6 +142,7 @@
                 alert("LIFFの初期化に失敗しました。LINEアプリ内からアクセスしてください。");
             });
     };
+
     function initializeApp() {
         if (!liffUser.uid) return;
 
@@ -182,6 +186,7 @@
                 alert("データの読み込みに失敗しました。再読み込みしてください。" + err);
             });
     }
+
     function getCategory(cid) {
         const s = cid.toString();
         if (s.startsWith('1')) return 1;
@@ -189,32 +194,39 @@
         if (s.startsWith('3')) return 3;
         return 4;
     }
+
+    // 後半枠のピンポイント・ロック制御ロジック
     function handle4WLock(slot, p) {
         const firstHalfSlot = slot.replace("後半", "前半");
         const partnerSlot = firstHalfSlot.replace("前半", "後半");       
         const mainEl = document.getElementById(`${firstHalfSlot}p${p}`);
         const partnerEl = document.getElementById(`${partnerSlot}p${p}`);
         if (!mainEl || !partnerEl) return;
+        
         const isFixed = document.getElementById(`fixed_${firstHalfSlot}`)?.checked || document.getElementById(`fixed_${partnerSlot}`)?.checked;
         if (isFixed) return;
+
         const check2wEl = document.getElementById(`check2w_${firstHalfSlot}p${p}`);
         const is2WMode = check2wEl ? check2wEl.checked : false;
+
         if (is2WMode) {
             mainEl.disabled = false;
             partnerEl.disabled = false;
         } else {
             const dept = serverDepartments.find(d => d.id == mainEl.value);
             if (dept && dept.type === "4W") {
-                partnerEl.value = dept.id; // 前半と同じ科をコピー
-                partnerEl.disabled = true; // 後半をロック
+                partnerEl.value = dept.id; // 前半と同じ科を自動コピー
+                partnerEl.disabled = true; // 後半を自動ロック
             } else {
                 partnerEl.value = "";
-                partnerEl.disabled = true; // 前半が空なら、後半単体で選ばせないようピンポイントでロック
+                partnerEl.disabled = true; // 前半が空、または不整合なら後半単体で選ばせないようロック
             }
         }
         updateAnyOptions();
         updateDashboard();
     }
+
+    // 「すでに決まっている」チェックボックスの制御
     function toggleSlotFixed(slot) {
         const isFixed = document.getElementById(`fixed_${slot}`).checked;
         const container = document.getElementById(`fields_${slot}`);
@@ -236,7 +248,7 @@
                     el.disabled = false;
                 }
             }
-            // 【修正】解除時、p1〜p8すべての希望に対してそれぞれの4W/2Wロック状態を正しく再評価する
+            // 解除時、各希望順位ごとの2W/4Wの結合ロック状態を再評価
             for (let p = 1; p <= 8; p++) {
                 handle4WLock(slot, p); 
             }
@@ -244,6 +256,8 @@
         updateAnyOptions();
         updateDashboard();
     }
+
+    // モード（4W/2W化）に応じたプルダウン選択肢の生成
     function buildDeptOptionsSlot(slot, pNum) {
         const sIdx = serverSlots.indexOf(slot);
         let options = '<option value="">-- 選択してください --</option>';
@@ -267,10 +281,7 @@
                 const slotKey = `${slot}p${pNum}`;
                 const ratio = Number(serverRatios.Slots?.[slotKey]?.[d.id] || 0);
                 
-                let statusIcon =
-                    ratio < 1 ? "🟢" :
-                    ratio < 2 ? "🟡" :
-                    "🔴";
+                let statusIcon = ratio < 1 ? "🟢" : ratio < 2 ? "🟡" : "🔴";
                 options += `<option value="${d.id}">
                     ${statusIcon} [${catLabel}] ${d.name} (${ratio.toFixed(1)}倍)
                 </option>`;
@@ -278,6 +289,8 @@
         });
         return options;
     }
+
+    // 動的フォームフィールドの生成
     function buildFormFields() {
         let anyHtml = ""; 
         for (let i = 1; i <= 4; i++) {
@@ -314,8 +327,7 @@
                                     <label class="custom-control-label font-weight-bold text-primary" for="check2w_${slot}p1" style="font-size:0.75rem; cursor:pointer;">2W化</label>
                                 </div>
                                 ` : ''}
-                                <select class="form-control form-control-sm slot-p1" id="${slot}p1" 
-                                        onchange="handle4WLock('${slot}', 1);">
+                                <select class="form-control form-control-sm slot-p1" id="${slot}p1" onchange="handle4WLock('${slot}', 1);">
                                     ${buildDeptOptionsSlot(slot, 1)}
                                 </select>
                             </div>
@@ -331,8 +343,7 @@
                                     <label class="custom-control-label font-weight-bold text-primary" for="check2w_${slot}p${p}" style="font-size:0.75rem; cursor:pointer;">2W化</label>
                                 </div>
                                 ` : ''}
-                                <select class="form-control form-control-sm" id="${slot}p${p}" 
-                                        onchange="handle4WLock('${slot}', ${p});">
+                                <select class="form-control form-control-sm" id="${slot}p${p}" onchange="handle4WLock('${slot}', ${p});">
                                     ${buildDeptOptionsSlot(slot, p)}
                                 </select>
                             </div>
@@ -343,13 +354,15 @@
         });
         document.getElementById("slot-fields-container").innerHTML = slotHtml;
 
-        // 【修正】一律ブラックアウトのループを削除し、各枠の状態（初期状態は4Wかつ空なので後半ロック）を正しくピンポイント適用
+        // 生成直後の初期ロック評価（初期状態は空のため、後半スロットがピンポイントで安全にマスクされる）
         serverSlots.forEach(slot => {
             for (let p = 1; p <= 8; p++) {
                 handle4WLock(slot, p);
             }
         });
     }
+
+    // 既存の保存データの適用とUI状態の復元
     function applyFormValues(data) {
         for(let p=1; p<=4; p++) {
             if(data[`Any${p}`]) document.getElementById(`Any${p}`).value = data[`Any${p}`];
@@ -380,7 +393,6 @@
                                 }
                             }
                         }
-
                         document.getElementById(key).value = data[key];
                         handle4WLock(slot, p);
                     }
@@ -388,6 +400,7 @@
             }
         });
     }
+
     // ダッシュボードと仮カレンダーのリアルタイム更新
     function updateDashboard() {
         let calHtml = "";
@@ -442,7 +455,7 @@
         document.getElementById("any-dashboard-body").innerHTML = anyHtml;
     }
 
-    // 【統合・修正】2W化チェックボックスが切り替わったときの処理
+    // 2W化チェックボックス切り替え時のトリガー処理
     function handle2WCheckChange(slot, p) {
         const firstHalfSlot = slot.replace("後半", "前半");
         const partnerSlot = firstHalfSlot.replace("前半", "後半");
@@ -452,19 +465,19 @@
         const partnerEl = document.getElementById(`${partnerSlot}p${p}`);
         if (!checkEl || !mainEl || !partnerEl) return;
 
-        // 4W ⇄ 2W の切り替え時は、選択肢のミスマッチを防ぐため安全に値を一度クリアする
+        // モード変更時はプルダウン選択肢のコンフリクトを回避するため一時クリア
         mainEl.value = "";
         partnerEl.value = "";
         
-        // モードに応じた選択肢（2W専用科 / 4W専用科）へプルダウンを再構築
+        // 新モード条件（2W専用/4W専用）に沿ってプルダウン内のoption要素をリビルド
         mainEl.innerHTML = buildDeptOptionsSlot(firstHalfSlot, p);
         partnerEl.innerHTML = buildDeptOptionsSlot(partnerSlot, p);
         
-        // 新しいチェック状態に基づいて、後半枠の disabled 制御を一元適用
+        // ピンポイントロック評価へ状態を引き渡す
         handle4WLock(firstHalfSlot, p);
     }
 
-    // 提出履歴の描画
+    // 提出履歴のレンダリング
     function renderHistory(history) {
         if(!history || history.length === 0) return;
         let html = "";
@@ -484,12 +497,12 @@
         document.getElementById("history-container").innerHTML = html;
     }
 
-    // 各クールの第1希望(p1)の選択肢を、Any枠のプルダウンに連動させる
+    // 各クールの第1希望(p1)をAny枠のプルダウンへ動的同期
     function updateAnyOptions() {
         let selectedP1Ids = [];
         serverSlots.forEach(slot => {
             let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
-            if (isFixed) return; // 決定済み枠の選択肢はAny枠に連携しない
+            if (isFixed) return; 
 
             let el = document.getElementById(`${slot}p1`);
             if (el && el.value) {
@@ -518,7 +531,7 @@
         }
     }
 
-    // データの送信処理（バリデーション含む）
+    // フォーム送信前バリデーション＆データペイロード送信処理
     function submitData() {
         const sidInput = document.getElementById("student_id");
         const studentId = sidInput.value.trim();
@@ -530,7 +543,7 @@
             let slot = serverSlots[i];
             let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
             
-            if (isFixed) continue; // 決定済みの場合は必須チェックをスキップ
+            if (isFixed) continue; 
 
             let p1Val = document.getElementById(`${slot}p1`) ? document.getElementById(`${slot}p1`).value : "";
             if (!p1Val) {
@@ -539,7 +552,6 @@
             }
         }
         
-        // 必須講座数のカウントチェック
         let catCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
         serverSlots.forEach(slot => {
             let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
@@ -568,7 +580,6 @@
             return; 
         }
         
-        // Any枠の重複チェック
         let anyValues = [];
         for(let p=1; p<=4; p++) {
             let val = document.getElementById(`Any${p}`).value;
@@ -581,7 +592,6 @@
             }
         }
         
-        // 4W講座の前後半不一致チェック（セーフティネット）
         for (let i = 0; i < serverSlots.length; i++) {
             let slot = serverSlots[i];
             if (!slot.includes("前半")) continue;
@@ -607,7 +617,6 @@
             }
         }
 
-        // 同一クール内での講座重複チェック
         for (const slot of serverSlots) {
             let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
             if (isFixed) continue;
