@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="robots" content="noindex, nofollow"><meta property="og:title" content="ページにアクセスしてください"><meta property="og:description" content="臨床実習 希望調査システム"><title>臨床実習 希望調査システム</title><link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
-        body { background-color: #f4f6f9; font-size: 0.9rem; } .nav-tabs .nav-link { border-radius: 0; color: #495057; font-weight: bold; background-color: #e9ecef; } .nav-tabs .nav-link.active { background-color: #fff; color: #007bff; border-bottom-color: transparent; } .fixed-header { position: sticky; top: 0; z-index: 1020; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); } .form-section { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); } .section-title { font-size: 1rem; font-weight: bold; color: #333; border-left: 4px solid #007bff; padding-left: 8px; margin-bottom: 12px; } select.form-control { width: 100% !important; max-width: 100% !important; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; } .timeline-item { border-left: 2px solid #007bff; padding-left: 15px; position: relative; margin-bottom: 15px; } .timeline-item::before { content: ""; position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background-color: #007bff; } .slot-container { transition: opacity 0.3s ease; } .row-blackout { opacity: 0.5; background-color: #f8f9fa; }
+        body { background-color: #f4f6f9; font-size: 0.9rem; } .nav-tabs .nav-link { border-radius: 0; color: #495057; font-weight: bold; background-color: #e9ecef; } .nav-tabs .nav-link.active { background-color: #fff; color: #007bff; border-bottom-color: transparent; } .fixed-header { position: sticky; top: 0; z-index: 1020; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); } .form-section { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); } .section-title { font-size: 1rem; font-weight: bold; color: #333; border-left: 4px solid #007bff; padding-left: 8px; margin-bottom: 12px; } select.form-control { width: 100% !important; max-width: 100% !important; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; } .timeline-item { border-left: 2px solid #007bff; padding-left: 15px; position: relative; margin-bottom: 15px; } .timeline-item::before { content: ""; position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background-color: #007bff; } .slot-container { transition: opacity 0.3s ease; } 
+        /* ブラックアウト（グレーアウト）表示用の確実なCSS */
+        .row-blackout { opacity: 0.5; background-color: #e9ecef !important; pointer-events: none; } .row-blackout select { background-color: #e9ecef !important; }
     </style>
 </head>
 <body>
 <div class="fixed-header">
-    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.50</span></div>
+    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.51</span></div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">ログイン中：学籍番号 <span id="current-sid"></span> さん</div>
     <ul class="nav nav-tabs nav-fill" id="mainTab" role="tablist"><li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash" role="tab">現在の状況</a></li><li class="nav-item"><a class="nav-link" id="form-tab" data-toggle="tab" href="#form" role="tab">希望を入力する</a></li><li class="nav-item"><a class="nav-link" id="history-tab" data-toggle="tab" href="#history" role="tab">提出履歴</a></li></ul>
 </div>
@@ -48,6 +50,7 @@
             if (!data.success) { alert("サーバーエラー: " + data.message); return; }
             serverDepartments = data.departments; serverSlots = data.slots; serverAnyCounts = data.anyCounts || {}; serverRatios = data.ratios;
             buildFormFields();
+            // 初期状態で、すべての「前半」スロットの各希望行に対してトグル処理を実行し、後半を正しくロックする
             serverSlots.forEach(s => { if(s.includes("前半")) for(let p=1;p<=8;p++) handle2WRowToggle(s,p); });
             renderHistory(data.history);
             if (data.history && data.history.length > 0) {
@@ -73,6 +76,7 @@
         });
         return options;
     }
+    // 前半のセレクトボックス値が変更された時、4Wモードなら後半へリアルタイム強制同期
     function handle4WLock(baseSlot, p) {
         const chk = document.getElementById(`2w_${baseSlot}p${p}`);
         if (!chk || !chk.checked) {
@@ -81,13 +85,17 @@
         }
         updateAnyOptions(); updateDashboard();
     }
+    // チェックボックス切り替え時のメイン処理（対象：後半スロットの行ラッパーおよび要素）
     function handle2WRowToggle(baseSlot, p) {
         const chk = document.getElementById(`2w_${baseSlot}p${p}`), partnerSlot = baseSlot.replace("前半", "後半"), fEl = document.getElementById(`${baseSlot}p${p}`), bEl = document.getElementById(`${partnerSlot}p${p}`), bWrapper = document.getElementById(`wrapper_${partnerSlot}p${p}`);
-        if (!chk || !chk.checked) {
-            if (bEl) { bEl.disabled = true; } if (bWrapper) { bWrapper.classList.add("row-blackout"); }
-            if (fEl && bEl) { bEl.value = fEl.value; }
+        const is2WMode = !!(chk && chk.checked);
+        if (!is2WMode) {
+            if (bEl) { bEl.disabled = true; } 
+            if (bWrapper) { bWrapper.classList.add("row-blackout"); } // 視覚的・操作的に完全にブラックアウト
+            if (fEl && bEl) { bEl.value = fEl.value; } // OFFにした瞬間に前半の値を後半へ強制コピー
         } else {
-            if (bEl) { bEl.disabled = false; } if (bWrapper) { bWrapper.classList.remove("row-blackout"); }
+            if (bEl) { bEl.disabled = false; } 
+            if (bWrapper) { bWrapper.classList.remove("row-blackout"); } // ブラックアウト解除
         }
         updateAnyOptions(); updateDashboard();
     }
@@ -101,6 +109,7 @@
             for (let p = 1; p <= 8; p++) {
                 const fClass = p === 1 ? "font-weight-bold" : "text-muted", opt2W = isFirstHalf ? `<div class="custom-control custom-checkbox ml-2 d-inline-block"><input type="checkbox" class="custom-control-input" id="2w_${slot}p${p}" onchange="handle2WRowToggle('${slot}', ${p})"><label class="custom-control-label font-weight-bold text-primary" for="2w_${slot}p${p}" style="font-size:0.75rem; cursor:pointer;">2W</label></div>` : "";
                 const onChangeStr = isFirstHalf ? `handle4WLock('${slot}', ${p});` : `updateAnyOptions(); updateDashboard();`;
+                // 各行ごとに固有のラッパーID（wrapper_第1クール前半p1, wrapper_第1クール後半p1 など）を正確に付与
                 slotHtml += `<div class="form-group row mb-1 align-items-center" id="wrapper_${slot}p${p}"><div class="col-4 pr-0 d-flex align-items-center justify-content-between"><label class="${fClass} mb-0" style="font-size:0.8rem;">第${p}希望:</label>${opt2W}</div><div class="col-8"><select class="form-control form-control-sm" id="${slot}p${p}" onchange="${onChangeStr}">${buildDeptOptionsSlot(slot, p)}</select></div></div>`;
             }
             slotHtml += `</div></div>`; 
