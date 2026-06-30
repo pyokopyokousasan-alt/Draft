@@ -189,50 +189,105 @@
         if (s.startsWith('3')) return 3;
         return 4;
     }
-    function buildDeptOptionsSlot(slot, pNum) {
-        const sIdx = serverSlots.indexOf(slot);
-        let options = '<option value="">-- 選択してください --</option>';
-        const catNames = ["", "内科", "外科", "マイナー", "その他"];
+    function buildFormFields() {
+        let anyHtml = ""; 
+        for (let i = 1; i <= 4; i++) {
+            anyHtml += `
+                <div class="form-group row mb-2">
+                    <label class="col-4 col-form-label font-weight-bold">Any${i}:</label>
+                    <div class="col-8">
+                        <select class="form-control" id="Any${i}" onchange="updateDashboard()">
+                            <option value="">-- 選択してください --</option>
+                        </select>
+                    </div>
+                </div>`;
+        }
+        document.getElementById("any-fields-container").innerHTML = anyHtml;
 
-        serverDepartments.forEach(d => {
-            const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
-            if (capacity > 0) {
-                const cat = getCategory(d.id);
-                const catLabel = (cat >= 0 && cat < catNames.length) ? catNames[cat] : "その他";
-                const slotKey = `${slot}p${pNum}`;
-                const ratio = Number(serverRatios.Slots?.[slotKey]?.[d.id] || 0);
-                
-                let statusIcon =
-                    ratio < 1 ? "🟢" :
-                    ratio < 2 ? "🟡" :
-                    "🔴";
-                options += `<option value="${d.id}">
-                    ${statusIcon} [${catLabel}] ${d.name} (${ratio.toFixed(1)}倍)
-                </option>`;
+        let slotHtml = ""; 
+        serverSlots.forEach(slot => {
+            slotHtml += `
+                <div class="border p-2 mb-2 rounded bg-light slot-container" id="container_${slot}">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="badge badge-dark">${slot}</span>
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="fixed_${slot}" onchange="toggleSlotFixed('${slot}')">
+                            <label class="custom-control-label font-weight-bold text-danger" for="fixed_${slot}" style="font-size:0.85rem; cursor:pointer;">すでに決まっている</label>
+                        </div>
+                    </div>
+                    <div id="fields_${slot}">
+                        <div class="form-group row mb-1 align-items-center">
+                            <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(p1):</label>
+                            <div class="col-8 d-flex align-items-center">
+                                ${slot.includes("前半") ? `
+                                <div class="custom-control custom-checkbox mr-2" style="white-space: nowrap;">
+                                    <input type="checkbox" class="custom-control-input" id="check2w_${slot}p1" onchange="handle2WCheckChange('${slot}', 1)">
+                                    <label class="custom-control-label font-weight-bold text-primary" for="check2w_${slot}p1" style="font-size:0.75rem; cursor:pointer;">2W化</label>
+                                </div>
+                                ` : ''}
+                                <select class="form-control form-control-sm slot-p1" id="${slot}p1" 
+                                        onchange="handle4WLock('${slot}', 1); updateAnyOptions(); updateDashboard();">
+                                    ${buildDeptOptionsSlot(slot, 1)}
+                                </select>
+                            </div>
+                        </div>`;
+            for(let p=2; p<=8; p++) {
+                slotHtml += `
+                        <div class="form-group row mb-1 align-items-center">
+                            <label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(p${p}):</label>
+                            <div class="col-8 d-flex align-items-center">
+                                ${slot.includes("前半") ? `
+                                <div class="custom-control custom-checkbox mr-2" style="white-space: nowrap;">
+                                    <input type="checkbox" class="custom-control-input" id="check2w_${slot}p${p}" onchange="handle2WCheckChange('${slot}', ${p})">
+                                    <label class="custom-control-label font-weight-bold text-primary" for="check2w_${slot}p${p}" style="font-size:0.75rem; cursor:pointer;">2W化</label>
+                                </div>
+                                ` : ''}
+                                <select class="form-control form-control-sm" id="${slot}p${p}" 
+                                        onchange="handle4WLock('${slot}', ${p}); updateDashboard();">
+                                    ${buildDeptOptionsSlot(slot, p)}
+                                </select>
+                            </div>
+                        </div>`;
+            }
+            slotHtml += `   </div>
+                </div>`; 
+        });
+        document.getElementById("slot-fields-container").innerHTML = slotHtml;
+        serverSlots.forEach(slot => {
+            if (slot.includes("後半")) {
+                for (let p = 1; p <= 8; p++) {
+                    const el = document.getElementById(`${slot}p${p}`);
+                    if (el) el.disabled = true;
+                }
             }
         });
-        return options;
     }
     function handle4WLock(slot, p) {
         const myEl = document.getElementById(`${slot}p${p}`);
         if (!myEl) return;
 
         const dept = serverDepartments.find(d => d.id == myEl.value);
-        const partnerSlot = slot.includes("前半")
-            ? slot.replace("前半","後半")
-            : slot.replace("後半","前半");
-
+        const firstHalfSlot = slot.replace("後半", "前半");
+        const partnerSlot = slot.includes("前半") ? slot.replace("前半","後半") : slot.replace("後半","前半");
         const partnerEl = document.getElementById(`${partnerSlot}p${p}`);
         if (!partnerEl) return;
 
-        if (dept && dept.type === "4W") {
-            partnerEl.value = dept.id;
-            partnerEl.disabled = true;
-        } else {
-            if (partnerEl.disabled) {
-                partnerEl.value = "";
-            }
+        const check2wEl = document.getElementById(`check2w_${firstHalfSlot}p${p}`);
+        const is2WMode = check2wEl ? check2wEl.checked : false;
+
+        if (is2WMode) {
+            myEl.disabled = false;
             partnerEl.disabled = false;
+        } else {
+            if (slot.includes("前半")) {
+                if (dept && dept.type === "4W") {
+                    partnerEl.value = dept.id;
+                    partnerEl.disabled = true;
+                } else {
+                    partnerEl.value = "";
+                    partnerEl.disabled = true;
+                }
+            }
         }
 
         updateAnyOptions();
@@ -278,6 +333,7 @@
                 </div>`;
         }
         document.getElementById("any-fields-container").innerHTML = anyHtml;
+
         let slotHtml = ""; 
         serverSlots.forEach(slot => {
             slotHtml += `
@@ -292,7 +348,13 @@
                     <div id="fields_${slot}">
                         <div class="form-group row mb-1 align-items-center">
                             <label class="col-4 font-weight-bold mb-0 pr-0" style="font-size:0.8rem;">第1希望(p1):</label>
-                            <div class="col-8">
+                            <div class="col-8 d-flex align-items-center">
+                                ${slot.includes("前半") ? `
+                                <div class="custom-control custom-checkbox mr-2" style="white-space: nowrap;">
+                                    <input type="checkbox" class="custom-control-input" id="check2w_${slot}p1" onchange="handle2WCheckChange('${slot}', 1)">
+                                    <label class="custom-control-label font-weight-bold text-primary" for="check2w_${slot}p1" style="font-size:0.75rem; cursor:pointer;">2W化</label>
+                                </div>
+                                ` : ''}
                                 <select class="form-control form-control-sm slot-p1" id="${slot}p1" 
                                         onchange="handle4WLock('${slot}', 1); updateAnyOptions(); updateDashboard();">
                                     ${buildDeptOptionsSlot(slot, 1)}
@@ -303,7 +365,13 @@
                 slotHtml += `
                         <div class="form-group row mb-1 align-items-center">
                             <label class="col-4 text-muted mb-0 pr-0" style="font-size:0.8rem;">第${p}希望(p${p}):</label>
-                            <div class="col-8">
+                            <div class="col-8 d-flex align-items-center">
+                                ${slot.includes("前半") ? `
+                                <div class="custom-control custom-checkbox mr-2" style="white-space: nowrap;">
+                                    <input type="checkbox" class="custom-control-input" id="check2w_${slot}p${p}" onchange="handle2WCheckChange('${slot}', ${p})">
+                                    <label class="custom-control-label font-weight-bold text-primary" for="check2w_${slot}p${p}" style="font-size:0.75rem; cursor:pointer;">2W化</label>
+                                </div>
+                                ` : ''}
                                 <select class="form-control form-control-sm" id="${slot}p${p}" 
                                         onchange="handle4WLock('${slot}', ${p}); updateDashboard();">
                                     ${buildDeptOptionsSlot(slot, p)}
@@ -315,6 +383,14 @@
                 </div>`; 
         });
         document.getElementById("slot-fields-container").innerHTML = slotHtml;
+        serverSlots.forEach(slot => {
+            if (slot.includes("後半")) {
+                for (let p = 1; p <= 8; p++) {
+                    const el = document.getElementById(`${slot}p${p}`);
+                    if (el) el.disabled = true;
+                }
+            }
+        });
     }
     function applyFormValues(data) {
         for(let p=1; p<=4; p++) {
@@ -323,7 +399,6 @@
         serverSlots.forEach(slot => {
             let p1Key = `${slot}p1`;
             if (data[p1Key] === "FIXED") {
-                // FIXED状態の復元
                 let checkEl = document.getElementById(`fixed_${slot}`);
                 if (checkEl) {
                     checkEl.checked = true;
@@ -333,7 +408,23 @@
                 for(let p=1; p<=8; p++) {
                     let key = `${slot}p${p}`;
                     if(data[key] && document.getElementById(key)) {
+                        if (slot.includes("前半")) {
+                            const dept = serverDepartments.find(d => d.id == data[key]);
+                            const check2wEl = document.getElementById(`check2w_${slot}p${p}`);
+                            if (dept && (dept.type === "2W" || dept.type === "hybrid") && check2wEl) {
+                                check2wEl.checked = true;
+                                const partnerSlot = slot.replace("前半", "後半");
+                                const partnerEl = document.getElementById(`${partnerSlot}p${p}`);
+                                document.getElementById(key).innerHTML = buildDeptOptionsSlot(slot, p);
+                                if (partnerEl) {
+                                    partnerEl.innerHTML = buildDeptOptionsSlot(partnerSlot, p);
+                                    partnerEl.disabled = false;
+                                }
+                            }
+                        }
+
                         document.getElementById(key).value = data[key];
+                        handle4WLock(slot, p);
                     }
                 }
             }
@@ -390,7 +481,28 @@
         });
         document.getElementById("any-dashboard-body").innerHTML = anyHtml;
     }
-    function renderHistory(history) {
+    function handle2WCheckChange(slot, p) {
+        const checkEl = document.getElementById(`check2w_${slot}p${p}`);
+        const myEl = document.getElementById(`${slot}p${p}`);
+        if (!checkEl || !myEl) return;
+        const partnerSlot = slot.replace("前半", "後半");
+        const partnerEl = document.getElementById(`${partnerSlot}p${p}`);
+        myEl.innerHTML = buildDeptOptionsSlot(slot, p);
+        myEl.value = "";
+        if (partnerEl) {
+            partnerEl.innerHTML = buildDeptOptionsSlot(partnerSlot, p);
+            partnerEl.value = "";
+            
+            if (checkEl.checked) {
+                partnerEl.disabled = false;
+            } else {
+                partnerEl.disabled = true;
+            }
+        }
+        handle4WLock(slot, p);
+        updateAnyOptions();
+        updateDashboard();
+    }function renderHistory(history) {
         if(!history || history.length === 0) return;
         let html = "";
         history.forEach((h, idx) => {
