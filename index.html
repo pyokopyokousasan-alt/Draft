@@ -18,8 +18,6 @@
         select.form-control { width: 100% !important; max-width: 100% !important; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
         .timeline-item { border-left: 2px solid #007bff; padding-left: 15px; position: relative; margin-bottom: 15px; }
         .timeline-item::before { content: ""; position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background-color: #007bff; }
-        
-        /* ブラックアウト用のスタイル */
         .slot-container { transition: opacity 0.3s ease; }
         .slot-blackout { opacity: 0.5; pointer-events: none; background-color: #e9ecef !important; }
     </style>
@@ -39,7 +37,6 @@
         <li class="nav-item"><a class="nav-link" id="history-tab" data-toggle="tab" href="#history" role="tab">提出履歴</a></li>
     </ul>
 </div>
-
 <div class="container-fluid p-3">
     <div class="tab-content" id="mainTabContent">
         <div class="tab-pane fade show active" id="dash" role="tablist">
@@ -75,7 +72,7 @@
                             <li>Any枠内（Any1〜Any4）重複選択不可。第一希望からのみ選択可能。</li>
                             <li>倍率は「提出者のデータ」に基づく集計です。提出するまでご自身の希望は反映されていません。</li>
                             <li>なりすまし防止の為、LINEアカウントにつき1つの学籍番号のみ提出可能です。問い合わせは宮崎まで。</li>
-                            <li>内科2以上、外科1以上、マイナー1から3、の条件を満たしていないと提出できません。（すでに決まっているクールはカウントから除外されます）</li>
+                            <li>内科2以上、外科1以上、マイナー1から3、の条件を満たしていないと提出できません。</li>
                         </ul>
                     </div>
                 </div>
@@ -92,21 +89,17 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="form-section">
                     <div class="section-title">Any枠 希望</div>
                     <div id="any-fields-container"></div>
                 </div>
-
                 <div class="form-section">
                     <div class="section-title">一般枠 希望</div>
                     <div id="slot-fields-container"></div>
                 </div>
-
                 <button type="button" class="btn btn-success btn-block font-weight-bold shadow mb-5" onclick="submitData()">希望を送信する</button>
             </form>
         </div>
-
         <div class="tab-pane fade" id="history" role="tabpanel">
             <div class="alert alert-info py-2 px-3 text-center" style="font-size:0.8rem;">
             </div>
@@ -116,7 +109,6 @@
         </div>
     </div>
 </div>
-
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -127,7 +119,6 @@
     let serverAnyCounts = { Any1:{}, Any2:{}, Any3:{}, Any4:{} };
     let serverRatios = { Any: {}, Slots: {} };
     let liffUser = { uid: "" }; 
-
     window.onload = function() {
         liff.init({ liffId: "2010321278-kOScGbBq" })
             .then(() => {
@@ -148,7 +139,6 @@
                 alert("LIFFの初期化に失敗しました。LINEアプリ内からアクセスしてください。");
             });
     };
-
     function initializeApp() {
         if (!liffUser.uid) return;
 
@@ -192,7 +182,6 @@
                 alert("データの読み込みに失敗しました。再読み込みしてください。" + err);
             });
     }
-
     function getCategory(cid) {
         const s = cid.toString();
         if (s.startsWith('1')) return 1;
@@ -200,7 +189,6 @@
         if (s.startsWith('3')) return 3;
         return 4;
     }
-
     function buildDeptOptionsSlot(slot, pNum) {
         const sIdx = serverSlots.indexOf(slot);
         let options = '<option value="">-- 選択してください --</option>';
@@ -218,7 +206,6 @@
                     ratio < 1 ? "🟢" :
                     ratio < 2 ? "🟡" :
                     "🔴";
-
                 options += `<option value="${d.id}">
                     ${statusIcon} [${catLabel}] ${d.name} (${ratio.toFixed(1)}倍)
                 </option>`;
@@ -226,7 +213,6 @@
         });
         return options;
     }
-
     function handle4WLock(slot, p) {
         const myEl = document.getElementById(`${slot}p${p}`);
         if (!myEl) return;
@@ -252,8 +238,6 @@
         updateAnyOptions();
         updateDashboard();
     }
-
-    // ブラックアウト仕様を制御する関数
     function toggleSlotFixed(slot) {
         const isFixed = document.getElementById(`fixed_${slot}`).checked;
         const container = document.getElementById(`fields_${slot}`);
@@ -275,13 +259,11 @@
                     el.disabled = false;
                 }
             }
-            // 4Wのロック解除状態を再度適応
             handle4WLock(slot, 1); 
         }
         updateAnyOptions();
         updateDashboard();
     }
-
     function buildFormFields() {
         let anyHtml = ""; 
         for (let i = 1; i <= 4; i++) {
@@ -296,7 +278,6 @@
                 </div>`;
         }
         document.getElementById("any-fields-container").innerHTML = anyHtml;
-
         let slotHtml = ""; 
         serverSlots.forEach(slot => {
             slotHtml += `
@@ -318,7 +299,6 @@
                                 </select>
                             </div>
                         </div>`;
-
             for(let p=2; p<=8; p++) {
                 slotHtml += `
                         <div class="form-group row mb-1 align-items-center">
@@ -336,7 +316,6 @@
         });
         document.getElementById("slot-fields-container").innerHTML = slotHtml;
     }
-
     function applyFormValues(data) {
         for(let p=1; p<=4; p++) {
             if(data[`Any${p}`]) document.getElementById(`Any${p}`).value = data[`Any${p}`];
@@ -360,12 +339,10 @@
             }
         });
     }
-
     function updateDashboard() {
         let calHtml = "";
         serverSlots.forEach(slot => {
             let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
-            
             let name, ratioStr = "";
             if (isFixed) {
                 name = '<span class="text-success font-weight-bold">✅ 決定済み</span>';
@@ -379,7 +356,6 @@
                 let ratio = Number(serverRatios.Slots?.[slotKey]?.[val] || 0);
                 ratioStr = val ? ` <small class="text-danger">[倍率: ${ratio.toFixed(1)}倍]</small>` : "";
             }
-
             calHtml += `
                 <div class="timeline-item">
                     <div class="font-weight-bold" style="font-size:0.85rem;">${slot}クール</div>
@@ -387,10 +363,8 @@
                 </div>`;
         });
         document.getElementById("calendar-body").innerHTML = calHtml;
-
         let anyHtml = "";
         const anyKeys = ["Any1", "Any2", "Any3", "Any4"];
-
         anyKeys.forEach((key, idx) => {
             let el = document.getElementById(key);
             let val = el ? el.value : "";
@@ -398,17 +372,13 @@
                 anyHtml += `<div class="p-1 text-muted border-bottom" style="font-size:0.8rem;">Any枠 ${idx+1}: 未選択</div>`;
                 return;
             }
-
             let dept = serverDepartments.find(d => d.id == val);
             if (!dept) return;
-            
             let ratio = Number(serverRatios.Any?.[`Any${idx+1}`]?.[val] || 0);
-
             let badge = "";
             if (ratio <= 1.0) badge = `<span class="badge badge-success px-2 py-1">見込み: 高 (安全)</span>`;
             else if (ratio <= 1.5) badge = `<span class="badge badge-warning px-2 py-1">見込み: 中 (混雑)</span>`;
             else badge = `<span class="badge badge-danger px-2 py-1">見込み: 低 (高倍率)</span>`;
-
             anyHtml += `
                 <div class="p-2 border-bottom bg-white rounded mb-1">
                     <div class="d-flex justify-content-between align-items-center">
@@ -420,7 +390,6 @@
         });
         document.getElementById("any-dashboard-body").innerHTML = anyHtml;
     }
-
     function renderHistory(history) {
         if(!history || history.length === 0) return;
         let html = "";
@@ -439,7 +408,6 @@
         });
         document.getElementById("history-container").innerHTML = html;
     }
-
     function updateAnyOptions() {
         let selectedP1Ids = [];
         serverSlots.forEach(slot => {
@@ -451,15 +419,11 @@
                 selectedP1Ids.push(el.value);
             }
         });
-
         let uniqueP1Ids = [...new Set(selectedP1Ids)];
-
         for (let p = 1; p <= 4; p++) {
             let anyEl = document.getElementById(`Any${p}`);
             if (!anyEl) continue;
-
             let currentVal = anyEl.value;
-
             let optionsHtml = '<option value="">-- 選択してください --</option>';
             uniqueP1Ids.forEach(cid => {
                 let dept = serverDepartments.find(d => d.id == cid);
@@ -476,16 +440,13 @@
             }
         }
     }
-
     function submitData() {
         const sidInput = document.getElementById("student_id");
         const studentId = sidInput.value.trim();
-
         if(!/^\d{6}$/.test(studentId)) {
             alert("エラー：学籍番号は必ず「半角数字6桁」で入力してください。");
             return;
         }
-
         for (let i = 0; i < serverSlots.length; i++) {
             let slot = serverSlots[i];
             let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
@@ -498,7 +459,6 @@
                 return;
             }
         }
-
         let catCounts = { 1: 0, 2: 0, 3: 0, 4: 0 };
         serverSlots.forEach(slot => {
             let isFixed = document.getElementById(`fixed_${slot}`) && document.getElementById(`fixed_${slot}`).checked;
@@ -514,7 +474,6 @@
             }
         });
 
-        // 【ルール制限】決定済みのクール数はカウントされないため、残りのクール数での制限となります
         if (catCounts[1] < 2) { 
             alert("エラー：院内内科(1000番台)を未決定枠の中で2クール以上選択してください。"); 
             return; 
@@ -527,7 +486,6 @@
             alert("エラー：院内マイナー科(3000番台)は未決定枠の中で1〜3クールの範囲で選択してください。"); 
             return; 
         }
-
         let anyValues = [];
         for(let p=1; p<=4; p++) {
             let val = document.getElementById(`Any${p}`).value;
@@ -539,8 +497,6 @@
                 anyValues.push(val);
             }
         }
-
-        // バリデーションチェック：4Wの相方が一致しているか
         for (let i = 0; i < serverSlots.length; i++) {
             let slot = serverSlots[i];
             if (!slot.includes("前半")) continue;
