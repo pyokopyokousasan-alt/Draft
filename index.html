@@ -60,37 +60,23 @@
 
     function getCategory(cid) { const s = cid.toString(); return s.startsWith('1') ? 1 : s.startsWith('2') ? 2 : s.startsWith('3') ? 3 : 4; }
 
-    // 【選択肢提示の再計算ロジック】※縦の列での診療科重複排除を追加
     function buildOptions(slot, p, is2WChecked) {
-        const sIdx = serverSlots.indexOf(slot);
-        let options = '<option value="">-- 選択してください --</option>';
-        const catNames = ["", "内科", "外科", "マイナー", "院外"];
-        
-        // ★同じクール内で、自分より上位の希望順位(1 〜 p-1)で既に選ばれている診療科IDを収集
-        let selectedUpperIds = [];
-        for (let prevP = 1; prevP < p; prevP++) {
-            const upperEl = document.getElementById(`${slot}p${prevP}`);
-            if (upperEl && upperEl.value) {
-                selectedUpperIds.push(upperEl.value);
-            }
+    const sIdx = serverSlots.indexOf(slot);
+    let options = '<option value="">-- 選択してください --</option>', 
+        excluded = [...Array(p).keys()].slice(1).map(i => document.getElementById(`${slot}p${i}`)?.value).filter(v => v);
+    
+    if (is2WChecked) {
+        let partner = document.getElementById(`${serverSlots[sIdx + (slot.includes("前半") ? 1 : -1)]}p${p}`);
+        if (partner?.value) excluded.push(partner.value);
+    }
+    
+    serverDepartments.forEach(d => {
+        if (d.slotCapacities?.[sIdx] > 0 && !(is2WChecked && d.type === "4W" || !is2WChecked && d.type === "2W") && !excluded.includes(d.id.toString())) {
+            const r = Number(serverRatios.Slots?.[`${slot}p${p}`]?.[d.id] || 0);
+            options += `<option value="${d.id}">${r < 1 ? "🟢" : r < 2 ? "🟡" : "🔴"} [${["","内科","外科","マイナー","院外"][getCategory(d.id)]}] ${d.name} (${r.toFixed(1)}倍)</option>`;
         }
-        
-        serverDepartments.forEach(d => {
-            const capacity = d.slotCapacities ? d.slotCapacities[sIdx] : 0;
-            if (capacity > 0) {
-                // 1. 2W/4W/hybrid モード不一致の制限
-                if (is2WChecked && d.type === "4W") return;
-                if (!is2WChecked && d.type === "2W") return;
-
-                // 2. ★重複排除：自分より上位の希望で選択済みのIDなら、選択肢として提示しない
-                if (selectedUpperIds.includes(d.id.toString())) return;
-
-                const cat = getCategory(d.id), catLabel = catNames[cat] || "その他";
-                const ratio = Number(serverRatios.Slots?.[`${slot}p${p}`]?.[d.id] || 0);
-                options += `<option value="${d.id}">${ratio < 1 ? "🟢" : ratio < 2 ? "🟡" : "🔴"} [${catLabel}] ${d.name} (${ratio.toFixed(1)}倍)</option>`;
-            }
-        });
-        return options;
+    });
+    return options;
     }
 
     // クール内の下位希望（現在のpから8まで）を連動して再計算させる補助関数
