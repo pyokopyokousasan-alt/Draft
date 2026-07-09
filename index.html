@@ -10,7 +10,7 @@
 </head>
 <body>
 <div class="fixed-header">
-    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.57</span></div>
+    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.58</span></div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">ログイン中：学籍番号 <span id="current-sid"></span> さん</div>
     <ul class="nav nav-tabs nav-fill" id="mainTab"><li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash">現在の状況</a></li><li class="nav-item"><a class="nav-link" id="form-tab" data-toggle="tab" href="#form">希望を入力する</a></li><li class="nav-item"><a class="nav-link" id="history-tab" data-toggle="tab" href="#history">提出履歴</a></li></ul>
 </div>
@@ -62,50 +62,38 @@
 
 function buildOptions(slot, p, is2WChecked) {
     const sIdx = serverSlots.indexOf(slot);
-    let options = '<option value="">-- 選択してください --</option>', 
-        excluded = [...Array(p).keys()].slice(1).map(i => document.getElementById(`${slot}p${i}`)?.value).filter(v => v);
-    let partnerSlot = serverSlots[sIdx + (slot.includes("前半") ? 1 : -1)];
-    if (is2WChecked) {
-        let partner = document.getElementById(`${partnerSlot}p${p}`);
-        if (partner?.value) excluded.push(partner.value);
+    let options = '<option value="">-- 選択してください --</option>';
+    let forbidden = [];
+    for (let i = 1; i < p; i++) {
+        let val = document.getElementById(`${slot}p${i}`)?.value;
+        if (val) forbidden.push(val);
     }
-    if (is2WChecked) {
+    serverSlots.forEach(s => {
+        // 自分自身のクール以外の第一希望をチェック
+        if (s !== slot) {
+            const firstChoice = document.getElementById(`${s}p1`)?.value;
+            if (firstChoice) forbidden.push(firstChoice);
+        }
+    });
+    let partnerSlot = serverSlots[sIdx + (slot.includes("前半") ? 1 : -1)];
+    if (is2WChecked && partnerSlot) {
         for (let i = 1; i <= 8; i++) {
             let pVal = document.getElementById(`${partnerSlot}p${i}`)?.value;
-            if (pVal) excluded.push(pVal);
+            if (pVal) forbidden.push(pVal);
         }
     }
-    if (p > 1) {
-        serverSlots.forEach(s => {
-            const firstChoice = document.getElementById(`${s}p1`)?.value;
-            if (firstChoice) excluded.push(firstChoice);
-        });
-    }
+    const excluded = [...new Set(forbidden)];
     serverDepartments.forEach(d => {
-        if (d.slotCapacities?.[sIdx] > 0 && !(is2WChecked && d.type === "4W" || !is2WChecked && d.type === "2W") && !excluded.includes(d.id.toString())) {
+        if (d.slotCapacities?.[sIdx] > 0 && 
+            !(is2WChecked && d.type === "4W" || !is2WChecked && d.type === "2W") && 
+            !excluded.includes(d.id.toString())) {
+            
             const r = Number(serverRatios.Slots?.[`${slot}p${p}`]?.[d.id] || 0);
             options += `<option value="${d.id}">${r < 1 ? "🟢" : r < 2 ? "🟡" : "🔴"} [${["","内科","外科","マイナー科","院外・基礎"][getCategory(d.id)]}] ${d.name} (${r.toFixed(1)}倍)</option>`;
         }
     });
     return options;
-    }
-    function cascadeRecalcChain(slot, partnerSlot, startP, is2WChecked) {
-        for (let currentP = startP; currentP <= 8; currentP++) {
-            const fSelect = document.getElementById(`${slot}p${currentP}`);
-            const bSelect = document.getElementById(`${partnerSlot}p${currentP}`);
-
-            const fVal = fSelect ? fSelect.value : "";
-            const bVal = bSelect ? bSelect.value : "";
-
-            if (fSelect) { fSelect.innerHTML = buildOptions(slot, currentP, is2WChecked); fSelect.value = fVal; }
-            if (bSelect) { bSelect.innerHTML = buildOptions(partnerSlot, currentP, is2WChecked); bSelect.value = bVal; }
-
-            // 4Wモード時の下位への強制同期の維持
-            if (!is2WChecked && bSelect && fSelect) {
-                bSelect.value = fSelect.value;
-            }
-        }
-    }
+}
 
     // 【管轄領域（行ペア）の再計算・再表示】
     function recalcRowDomain(frontSlot, partnerSlot, p) {
@@ -129,23 +117,22 @@ function buildOptions(slot, p, is2WChecked) {
         updateAnyOptions(); updateDashboard();
     }
 
-    // 各ドロップダウンが手動で変更された時のイベント処理
     function handleSelectChange(frontSlot, partnerSlot, p, isBackSlot) {
-        const chk = document.getElementById(`2w_${frontSlot}p${p}`);
-        const is2WChecked = !!(chk && chk.checked);
-
-        // 4Wモードかつ前半の変更なら、後半へ値を即座に強制コピー
-        if (!is2WChecked && !isBackSlot) {
-            const fEl = document.getElementById(`${frontSlot}p${p}`);
-            const bEl = document.getElementById(`${partnerSlot}p${p}`);
-            if (fEl && bEl) bEl.value = fEl.value;
-        }
-
-        // 自分の選択が変わったことで、それより下の希望順位(p+1〜8)の重複選択肢を削るために再計算を走らせる
-        cascadeRecalcChain(frontSlot, partnerSlot, p + 1, is2WChecked);
-
-        updateAnyOptions(); updateDashboard();
+    const chk = document.getElementById(`2w_${frontSlot}p${p}`);
+    const is2WChecked = !!(chk && chk.checked);
+    if (!is2WChecked && !isBackSlot) {
+        const fEl = document.getElementById(`${frontSlot}p${p}`);
+        const bEl = document.getElementById(`${partnerSlot}p${p}`);
+        if (fEl && bEl) bEl.value = fEl.value;
     }
+    serverSlots.forEach(s => {
+        if (!s.includes("前半")) return;
+        const pSlot = serverSlots[serverSlots.indexOf(s) + 1];
+        cascadeRecalcChain(s, pSlot, 1, false); 
+    });
+    updateAnyOptions(); 
+    updateDashboard();
+}
 
     function buildFormFields() {
         let anyHtml = ""; for (let i = 1; i <= 4; i++) { anyHtml += `<div class="form-group row mb-2"><label class="col-4 col-form-label font-weight-bold">Any${i}:</label><div class="col-8"><select class="form-control" id="Any${i}" onchange="updateDashboard()"><option value="">-- 選択してください --</option></select></div></div>`; }
