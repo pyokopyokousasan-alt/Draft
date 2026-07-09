@@ -108,30 +108,29 @@
         serverDepartments.forEach(d => {
             if (d.slotCapacities?.[sIdx] > 0 && !(is2WChecked && d.type === "4W" || !is2WChecked && d.type === "2W") && !excluded.includes(d.id.toString())) {
                 const r = Number(serverRatios.Slots?.[`${slot}p${p}`]?.[d.id] || 0);
-                options += `<option value="${d.id}">${r < 1 ? "🟢" : r < 2 ? "🟡" : "🔴"} [${["","内科","外科","マイナー","院外"][getCategory(d.id)]}] ${d.name} (${r.toFixed(1)}倍)</option>`;
+                options += `<option value="${d.id}">${r < 1 ? "🟢" : r < 2 ? "🟡" : "🔴"} [${["","内科","外科","マイナー","院外・基礎"][getCategory(d.id)]}] ${d.name} (${r.toFixed(1)}倍)</option>`;
             }
         });
         return options;
     }
 
     // クール内の下位希望（現在のpから8まで）を連動して再計算させる補助関数
-    function cascadeRecalcChain(slot, partnerSlot, startP, is2WChecked) {
-        for (let currentP = startP; currentP <= 8; currentP++) {
-            const fSelect = document.getElementById(`${slot}p${currentP}`);
-            const bSelect = document.getElementById(`${partnerSlot}p${currentP}`);
+function cascadeRecalcChain(slot, partnerSlot, startP, is2WChecked) {
+    for (let currentP = startP; currentP <= 8; currentP++) {
+        const chk = document.getElementById(`2w_${slot}p${currentP}`);
+        const currentIs2W = !!(chk && chk.checked);
 
-            const fVal = fSelect ? fSelect.value : "";
-            const bVal = bSelect ? bSelect.value : "";
+        const fSelect = document.getElementById(`${slot}p${currentP}`);
+        const bSelect = document.getElementById(`${partnerSlot}p${currentP}`);
 
-            if (fSelect) { fSelect.innerHTML = buildOptions(slot, currentP, is2WChecked); fSelect.value = fVal; }
-            if (bSelect) { bSelect.innerHTML = buildOptions(partnerSlot, currentP, is2WChecked); bSelect.value = bVal; }
-
-            // 4Wモード時の下位への強制同期の維持
-            if (!is2WChecked && bSelect && fSelect) {
-                bSelect.value = fSelect.value;
-            }
+        if (fSelect) { 
+            fSelect.innerHTML = buildOptions(slot, currentP, currentIs2W); 
+        }
+        if (bSelect) { 
+            bSelect.innerHTML = buildOptions(partnerSlot, currentP, currentIs2W); 
         }
     }
+}
 
     // 【管轄領域（行ペア）の再計算・再表示】
     function recalcRowDomain(frontSlot, partnerSlot, p) {
