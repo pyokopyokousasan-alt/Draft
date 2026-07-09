@@ -80,17 +80,24 @@
     };
 
     function initializeApp() {
-        fetch(`${GAS_API_URL}?uid=${liffUser.uid}`).then(res => res.json()).then(data => {
-            if (!data.success) return;
-            serverDepartments = data.departments; serverSlots = data.slots; serverRatios = data.ratios;
-            buildFormFields();
-            if (data.history && data.history.length > 0) {
-                const latest = data.history[0]; document.getElementById("student_id").value = latest.student_id;
-                applyFormValues(latest);
+    fetch(`${GAS_API_URL}?uid=${liffUser.uid}`).then(res => res.json()).then(data => {
+        if (!data.success) return;
+        serverDepartments = data.departments; 
+        serverSlots = data.slots; 
+        serverRatios = data.ratios;
+        buildFormFields();
+        if (data.history && data.history.length > 0) {
+            const latest = data.history[0]; 
+            document.getElementById("student_id").value = latest.student_id;
+            applyFormValues(latest);
+            updateAnyOptions(); 
+            for (let p = 1; p <= 4; p++) {
+                if(latest[`Any${p}`]) document.getElementById(`Any${p}`).value = latest[`Any${p}`];
             }
-            updateAnyOptions(); updateDashboard();
-        });
-    }
+        }
+        updateDashboard();
+    });
+}
 
     function getCategory(cid) { const s = cid.toString(); return s.startsWith('1') ? 1 : s.startsWith('2') ? 2 : s.startsWith('3') ? 3 : 4; }
 
@@ -201,21 +208,28 @@
     }
 
     function applyFormValues(data) {
-        for (let p = 1; p <= 4; p++) { if (data[`Any${p}`]) document.getElementById(`Any${p}`).value = data[`Any${p}`]; }
-        for (let i = 0; i < serverSlots.length; i++) {
-            const slot = serverSlots[i]; if (!slot.includes("前半")) continue;
-            const partnerSlot = serverSlots[i+1] || "";
-            for (let p = 1; p <= 8; p++) {
-                if (data[`2w_${slot}p${p}`] !== undefined) {
-                    const chk = document.getElementById(`2w_${slot}p${p}`);
-                    if (chk) chk.checked = !!data[`2w_${slot}p${p}`];
-                }
-                if (data[`${slot}p${p}`]) document.getElementById(`${slot}p${p}`).value = data[`${slot}p${p}`];
-                if (data[`${partnerSlot}p${p}`]) document.getElementById(`${partnerSlot}p${p}`).value = data[`${partnerSlot}p${p}`];
-                recalcRowDomain(slot, partnerSlot, p);
-            }
+    for (let p = 1; p <= 4; p++) {
+        const anyEl = document.getElementById(`Any${p}`);
+        if (anyEl && data[`Any${p}`]) {
+            anyEl.value = data[`Any${p}`];
         }
     }
+    for (let i = 0; i < serverSlots.length; i++) {
+        const slot = serverSlots[i]; 
+        if (!slot.includes("前半")) continue;
+        const partnerSlot = serverSlots[i+1] || "";
+        for (let p = 1; p <= 8; p++) {
+            if (data[`2w_${slot}p${p}`] !== undefined) {
+                const chk = document.getElementById(`2w_${slot}p${p}`);
+                if (chk) chk.checked = !!data[`2w_${slot}p${p}`];
+            }
+            if (data[`${slot}p${p}`]) document.getElementById(`${slot}p${p}`).value = data[`${slot}p${p}`];
+            if (data[`${partnerSlot}p${p}`]) document.getElementById(`${partnerSlot}p${p}`).value = data[`${partnerSlot}p${p}`];
+            recalcRowDomain(slot, partnerSlot, p);
+        }
+    }
+    updateAnyOptions(); 
+}
 
     function updateDashboard() {
         let calHtml = "";
