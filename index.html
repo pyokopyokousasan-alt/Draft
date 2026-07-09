@@ -99,26 +99,35 @@
         const isFront = slot.includes("前半");
         const partnerSlot = isFront ? serverSlots[sIdx + 1] : serverSlots[sIdx - 1];
         
+        const currentVal = document.getElementById(`${slot}p${p}`)?.value;
+
         let options = '<option value="">-- 選択してください --</option>', 
-            excluded = [...Array(p).keys()].slice(1).map(i => document.getElementById(`${slot}p${i}`)?.value).filter(v => v);
+            excluded = [];
+
+        for (let i = 1; i < p; i++) {
+            let val = document.getElementById(`${slot}p${i}`)?.value;
+            if (val) excluded.push(val);
+        }
 
         if (is2WChecked) {
             let partner = document.getElementById(`${partnerSlot}p${p}`);
-            if (partner?.value) excluded.push(partner.value);
-        }
-        if (p === 1) {
-            serverSlots.forEach(s => {
-                if (s !== slot && s !== partnerSlot) {
-                    let otherP1 = document.getElementById(`${s}p1`)?.value;
-                    if (otherP1) excluded.push(otherP1);
-                }
-            });
+            if (partner?.value && partner.value !== currentVal) excluded.push(partner.value);
         }
 
+        serverSlots.forEach(s => {
+            if (s !== slot && s !== partnerSlot) {
+                let otherP1 = document.getElementById(`${s}p1`)?.value;
+                if (otherP1 && otherP1 !== currentVal) excluded.push(otherP1);
+            }
+        });
+
+        excluded = [...new Set(excluded)];
+
         serverDepartments.forEach(d => {
-            if (d.slotCapacities?.[sIdx] > 0 && !(is2WChecked && d.type === "4W" || !is2WChecked && d.type === "2W") && !excluded.includes(d.id.toString())) {
+            if (d.slotCapacities?.[sIdx] > 0 && !(is2WChecked && d.type === "4W" || !is2WChecked && d.type === "2W") && (!excluded.includes(d.id.toString()) || d.id.toString() === currentVal)) {
                 const r = Number(serverRatios.Slots?.[`${slot}p${p}`]?.[d.id] || 0);
-                options += `<option value="${d.id}">${r < 1 ? "🟢" : r < 2 ? "🟡" : "🔴"} [${["","内科","外科","マイナー","院外・基礎"][getCategory(d.id)]}] ${d.name} (${r.toFixed(1)}倍)</option>`;
+                const selectedAttr = (d.id.toString() === currentVal) ? 'selected' : '';
+                options += `<option value="${d.id}" ${selectedAttr}>${r < 1 ? "🟢" : r < 2 ? "🟡" : "🔴"} [${["","内科","外科","マイナー","院外・基礎"][getCategory(d.id)]}] ${d.name} (${r.toFixed(1)}倍)</option>`;
             }
         });
         return options;
