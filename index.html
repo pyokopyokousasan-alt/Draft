@@ -20,7 +20,7 @@
 </head>
 <body>
 <div class="fixed-header">
-    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.61</span></div>
+    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.63</span></div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">ログイン中：学籍番号 <span id="current-sid"></span> さん</div>
     <ul class="nav nav-tabs nav-fill" id="mainTab">
         <li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash">現在の状況</a></li>
@@ -232,11 +232,30 @@
         let selectedP1Ids = [];
         serverSlots.forEach(slot => { let el = document.getElementById(`${slot}p1`); if (el && el.value) selectedP1Ids.push(el.value); });
         let uniqueP1Ids = [...new Set(selectedP1Ids)];
+
         for (let p = 1; p <= 4; p++) {
-            let anyEl = document.getElementById(`Any${p}`); if (!anyEl) continue;
-            let currentVal = anyEl.value, optionsHtml = '<option value="">-- 選択してください --</option>';
-            uniqueP1Ids.forEach(cid => { let dept = serverDepartments.find(d => d.id == cid); if (dept) optionsHtml += `<option value="${dept.id}">${dept.name}</option>`; });
-            anyEl.innerHTML = optionsHtml; anyEl.value = uniqueP1Ids.includes(currentVal) ? currentVal : "";
+            let anyEl = document.getElementById(`Any${p}`); 
+            if (!anyEl) continue;
+
+            let currentVal = anyEl.value;
+            let excluded = [];
+            for (let i = 1; i <= 4; i++) {
+                if (i === p) continue;
+                let otherAnyVal = document.getElementById(`Any${i}`)?.value;
+                if (otherAnyVal) excluded.push(otherAnyVal);
+            }
+
+            let optionsHtml = '<option value="">-- 選択してください --</option>';
+            uniqueP1Ids.forEach(cid => {
+                if (!excluded.includes(cid.toString()) || cid.toString() === currentVal) {
+                    let dept = serverDepartments.find(d => d.id == cid);
+                    if (dept) {
+                        const selectedAttr = (cid.toString() === currentVal) ? 'selected' : '';
+                        optionsHtml += `<option value="${dept.id}" ${selectedAttr}>${dept.name}</option>`;
+                    }
+                }
+            });
+            anyEl.innerHTML = optionsHtml;
         }
     }
 
