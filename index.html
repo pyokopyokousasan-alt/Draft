@@ -21,7 +21,7 @@
 </head>
 <body>
 <div class="fixed-header">
-    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.61</span></div>
+    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.62</span></div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">ログイン中：学籍番号 <span id="current-sid"></span> さん</div>
     <ul class="nav nav-tabs nav-fill" id="mainTab">
         <li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash">現在の状況</a></li>
@@ -97,16 +97,20 @@
 
     function buildOptions(slot, p, is2WChecked) {
     const sIdx = serverSlots.indexOf(slot);
+    const isFront = slot.includes("前半");
+    const partnerSlot = isFront ? serverSlots[sIdx + 1] : serverSlots[sIdx - 1];
+    
     let options = '<option value="">-- 選択してください --</option>', 
         excluded = [...Array(p).keys()].slice(1).map(i => document.getElementById(`${slot}p${i}`)?.value).filter(v => v);
 
     if (is2WChecked) {
-        let partner = document.getElementById(`${serverSlots[sIdx + (slot.includes("前半") ? 1 : -1)]}p${p}`);
+        let partner = document.getElementById(`${partnerSlot}p${p}`);
         if (partner?.value) excluded.push(partner.value);
     }
+
     if (p === 1) {
         serverSlots.forEach(s => {
-            if (s !== slot) {
+            if (s !== slot && s !== partnerSlot) {
                 let otherP1 = document.getElementById(`${s}p1`)?.value;
                 if (otherP1) excluded.push(otherP1);
             }
