@@ -1,233 +1,213 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="robots" content="noindex, nofollow"><title>臨床実習 希望調査システム</title><link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>臨床実習 希望調査システム</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
-        body { background-color: #f4f6f9; font-size: 0.9rem; } .fixed-header { position: sticky; top: 0; z-index: 1020; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); } .form-section { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); } .section-title { font-size: 1rem; font-weight: bold; color: #333; border-left: 4px solid #007bff; padding-left: 8px; margin-bottom: 12px; } select.form-control { width: 100% !important; max-width: 100% !important; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; } .timeline-item { border-left: 2px solid #007bff; padding-left: 15px; position: relative; margin-bottom: 15px; } .timeline-item::before { content: ""; position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background-color: #007bff; }
-        /* 管轄領域のブラックアウト用スタイル */
-        .block-blackout { opacity: 0.5; background-color: #e9ecef !important; pointer-events: none; } .block-blackout select { background-color: #e9ecef !important; }
+        body { background: #f4f6f9; font-size: 0.9rem; }
+        .fixed-header { position: sticky; top: 0; z-index: 1020; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .form-section { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .section-title { font-size: 1rem; font-weight: bold; border-left: 4px solid #007bff; padding-left: 8px; margin-bottom: 12px; }
+        .block-blackout { opacity: 0.5; background: #e9ecef !important; pointer-events: none; }
+        .block-blackout select { background: #e9ecef !important; }
     </style>
 </head>
 <body>
+
 <div class="fixed-header">
-    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.58</span></div>
-    <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">ログイン中：学籍番号 <span id="current-sid"></span> さん</div>
-    <ul class="nav nav-tabs nav-fill" id="mainTab"><li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash">現在の状況</a></li><li class="nav-item"><a class="nav-link" id="form-tab" data-toggle="tab" href="#form">希望を入力する</a></li><li class="nav-item"><a class="nav-link" id="history-tab" data-toggle="tab" href="#history">提出履歴</a></li></ul>
+    <div class="bg-dark text-white p-2 text-center font-weight-bold">臨床実習 希望調査システム <span class="badge badge-info">ver0.57</span></div>
+    <ul class="nav nav-tabs nav-fill" id="mainTab">
+        <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#dash">状況</a></li>
+        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#form">入力</a></li>
+        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#history">履歴</a></li>
+    </ul>
 </div>
+
 <div class="container-fluid p-3">
-    <div class="tab-content" id="mainTabContent">
+    <div class="tab-content">
         <div class="tab-pane fade show active" id="dash">
-            <div id="status-alert" class="alert alert-danger text-center font-weight-bold">⚠️ まだ希望調査が提出されていません！</div>
-            <div class="card shadow-sm mb-3"><div class="card-header bg-primary text-white font-weight-bold p-2" style="font-size:0.9rem;">🌟 あなたのAny枠 通過見込み</div><div class="card-body p-2 bg-light" id="any-dashboard-body"></div></div>
-            <div class="card shadow-sm"><div class="card-header bg-secondary text-white font-weight-bold p-2" style="font-size:0.9rem;">🗓️ 第1希望スケジュール</div><div class="card-body p-3" id="calendar-body"></div></div>
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-primary text-white font-weight-bold">🌟 Any枠見込み</div>
+                <div class="card-body p-2" id="any-dashboard-body"></div>
+            </div>
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white font-weight-bold">🗓️ 第1希望スケジュール</div>
+                <div class="card-body p-3" id="calendar-body"></div>
+            </div>
         </div>
         <div class="tab-pane fade" id="form">
             <form id="hopeForm">
-                <div class="form-section"><div class="section-title">学生情報</div><div class="form-group row m-0"><label class="col-4 col-form-label px-1 font-weight-bold">学籍番号:</label><div class="col-8 px-1"><input type="text" class="form-control form-control-sm" id="student_id" required maxlength="6"></div></div></div>
-                <div class="form-section"><div class="section-title">Any枠 希望</div><div id="any-fields-container"></div></div>
-                <div class="form-section"><div class="section-title">一般枠 希望</div><div id="slot-fields-container"></div></div>
-                <button type="button" class="btn btn-success btn-block font-weight-bold shadow mb-5" onclick="submitData()">希望を送信する</button>
+                <div class="form-section">
+                    <div class="section-title">学生情報</div>
+                    <input type="text" class="form-control" id="student_id" placeholder="学籍番号6桁" required maxlength="6">
+                </div>
+                <div class="form-section">
+                    <div class="section-title">Any枠</div>
+                    <div id="any-fields-container"></div>
+                </div>
+                <div class="form-section">
+                    <div class="section-title">一般枠</div>
+                    <div id="slot-fields-container"></div>
+                </div>
+                <button type="button" class="btn btn-success btn-block" onclick="submitData()">希望を送信する</button>
             </form>
         </div>
-        <div class="tab-pane fade" id="history"><div id="history-container"></div></div>
     </div>
 </div>
-<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script><script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script><script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script>
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwy67BWTMsLnO9O6pvnEUwem5hXuqlo6_naNAj1Yvoca-LMDZ8tmwdkXSYJp8WEhnTCYA/exec"; 
-    let serverDepartments = [], serverSlots = [], serverRatios = { Any: {}, Slots: {} }, liffUser = { uid: "" }; 
 
-    window.onload = function() {
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/js/bootstrap.bundle.min.js"></script>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+<script>
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwy67BWTMsLnO9O6pvnEUwem5hXuqlo6_naNAj1Yvoca-LMDZ8tmwdkXSYJp8WEhnTCYA/exec";
+    let serverDeps = [], serverSlots = [], serverRatios = { Any: {}, Slots: {} }, liffUser = { uid: "" };
+
+    window.onload = () => {
         liff.init({ liffId: "2010321278-kOScGbBq" }).then(() => {
-            if (!liff.isLoggedIn()) { liff.login(); } else {
-                liff.getProfile().then(profile => { liffUser.uid = profile.userId; initializeApp(); });
-            }
+            if (!liff.isLoggedIn()) liff.login();
+            else liff.getProfile().then(p => { liffUser.uid = p.userId; initApp(); });
         });
     };
 
-    function initializeApp() {
-        fetch(`${GAS_API_URL}?uid=${liffUser.uid}`).then(res => res.json()).then(data => {
-            if (!data.success) return;
-            serverDepartments = data.departments; serverSlots = data.slots; serverRatios = data.ratios;
+    function initApp() {
+        fetch(`${GAS_API_URL}?uid=${liffUser.uid}`).then(r => r.json()).then(d => {
+            if (!d.success) return;
+            serverDeps = d.departments; serverSlots = d.slots; serverRatios = d.ratios;
             buildFormFields();
-            if (data.history && data.history.length > 0) {
-                const latest = data.history[0]; document.getElementById("student_id").value = latest.student_id;
-                applyFormValues(latest);
-            }
+            if (d.history?.length) applyFormValues(d.history[0]);
             updateAnyOptions(); updateDashboard();
         });
     }
 
-    function getCategory(cid) { const s = cid.toString(); return s.startsWith('1') ? 1 : s.startsWith('2') ? 2 : s.startsWith('3') ? 3 : 4; }
+    function buildOptions(slot, p, is2W) {
+        let sIdx = serverSlots.indexOf(slot);
+        let ex = [...Array(p).keys()].slice(1).map(i => document.getElementById(`${slot}p${i}`)?.value).filter(v => v);
+        
+        // 全クール第一希望除外
+        serverSlots.forEach(s => {
+            let v = document.getElementById(`${s}p1`)?.value;
+            if (v && s !== slot) ex.push(v);
+        });
 
-function buildOptions(slot, p, is2WChecked) {
-    const sIdx = serverSlots.indexOf(slot);
-    let options = '<option value="">-- 選択してください --</option>';
-    let forbidden = [];
-    for (let i = 1; i < p; i++) {
-        let val = document.getElementById(`${slot}p${i}`)?.value;
-        if (val) forbidden.push(val);
+        // 2Wペア除外
+        if (is2W) {
+            let pS = serverSlots[sIdx + (slot.includes("前半") ? 1 : -1)];
+            let prt = document.getElementById(`${pS}p${p}`);
+            if (prt?.value) ex.push(prt.value);
+        }
+
+        let opt = '<option value="">-- 選択してください --</option>';
+        serverDeps.forEach(d => {
+            if (d.slotCapacities?.[sIdx] > 0 && !(is2W && d.type === "4W" || !is2W && d.type === "2W") && !ex.includes(d.id.toString())) {
+                let r = Number(serverRatios.Slots?.[`${slot}p${p}`]?.[d.id] || 0);
+                opt += `<option value="${d.id}">${r<1?"🟢":r<2?"🟡":"🔴"} ${d.name} (${r.toFixed(1)}倍)</option>`;
+            }
+        });
+        return opt;
     }
-    serverSlots.forEach(s => {
-        // 自分自身のクール以外の第一希望をチェック
-        if (s !== slot) {
-            const firstChoice = document.getElementById(`${s}p1`)?.value;
-            if (firstChoice) forbidden.push(firstChoice);
-        }
-    });
-    let partnerSlot = serverSlots[sIdx + (slot.includes("前半") ? 1 : -1)];
-    if (is2WChecked && partnerSlot) {
-        for (let i = 1; i <= 8; i++) {
-            let pVal = document.getElementById(`${partnerSlot}p${i}`)?.value;
-            if (pVal) forbidden.push(pVal);
-        }
+
+    function cascadeRecalcAll() {
+        serverSlots.forEach(s => {
+            if (!s.includes("前半")) return;
+            let pS = serverSlots[serverSlots.indexOf(s) + 1];
+            let is2W = !!document.getElementById(`2w_${s}p1`)?.checked;
+            for (let i = 1; i <= 8; i++) {
+                let f = document.getElementById(`${s}p${i}`), b = document.getElementById(`${pS}p${i}`);
+                if (f) { let v = f.value; f.innerHTML = buildOptions(s, i, is2W); f.value = v; }
+                if (b) { let v = b.value; b.innerHTML = buildOptions(pS, i, is2W); b.value = v; }
+            }
+        });
     }
-    const excluded = [...new Set(forbidden)];
-    serverDepartments.forEach(d => {
-        if (d.slotCapacities?.[sIdx] > 0 && 
-            !(is2WChecked && d.type === "4W" || !is2WChecked && d.type === "2W") && 
-            !excluded.includes(d.id.toString())) {
-            
-            const r = Number(serverRatios.Slots?.[`${slot}p${p}`]?.[d.id] || 0);
-            options += `<option value="${d.id}">${r < 1 ? "🟢" : r < 2 ? "🟡" : "🔴"} [${["","内科","外科","マイナー科","院外・基礎"][getCategory(d.id)]}] ${d.name} (${r.toFixed(1)}倍)</option>`;
+
+    function handleSelectChange(fS, pS, p, isBack) {
+        let is2W = !!document.getElementById(`2w_${fS}p${p}`)?.checked;
+        if (!is2W && !isBack) {
+            let f = document.getElementById(`${fS}p${p}`), b = document.getElementById(`${pS}p${p}`);
+            if (f && b) b.value = f.value;
         }
-    });
-    return options;
-}
-
-    // 【管轄領域（行ペア）の再計算・再表示】
-    function recalcRowDomain(frontSlot, partnerSlot, p) {
-        const chk = document.getElementById(`2w_${frontSlot}p${p}`);
-        const is2WChecked = !!(chk && chk.checked);
-
-        const bSelect = document.getElementById(`${partnerSlot}p${p}`);
-        const bWrapper = document.getElementById(`wrapper_${partnerSlot}p${p}`);
-
-        // 1. この行から最下位(p=8)までの選択肢提示ロジックをまとめて再計算
-        cascadeRecalcChain(frontSlot, partnerSlot, p, is2WChecked);
-
-        // 2. 表示・連動ロジックの再計算
-        if (!is2WChecked) {
-            if (bSelect) bSelect.disabled = true;
-            if (bWrapper) bWrapper.classList.add("block-blackout");
-        } else {
-            if (bSelect) bSelect.disabled = false;
-            if (bWrapper) bWrapper.classList.remove("block-blackout");
-        }
+        cascadeRecalcAll();
         updateAnyOptions(); updateDashboard();
     }
 
-    function handleSelectChange(frontSlot, partnerSlot, p, isBackSlot) {
-    const chk = document.getElementById(`2w_${frontSlot}p${p}`);
-    const is2WChecked = !!(chk && chk.checked);
-    if (!is2WChecked && !isBackSlot) {
-        const fEl = document.getElementById(`${frontSlot}p${p}`);
-        const bEl = document.getElementById(`${partnerSlot}p${p}`);
-        if (fEl && bEl) bEl.value = fEl.value;
+    function recalcRowDomain(fS, pS, p) {
+        let is2W = !!document.getElementById(`2w_${fS}p${p}`)?.checked;
+        let bS = document.getElementById(`${pS}p${p}`), bW = document.getElementById(`wrapper_${pS}p${p}`);
+        if (!is2W) { bS.disabled = true; bW.classList.add("block-blackout"); }
+        else { bS.disabled = false; bW.classList.remove("block-blackout"); }
+        cascadeRecalcAll();
+        updateAnyOptions(); updateDashboard();
     }
-    serverSlots.forEach(s => {
-        if (!s.includes("前半")) return;
-        const pSlot = serverSlots[serverSlots.indexOf(s) + 1];
-        cascadeRecalcChain(s, pSlot, 1, false); 
-    });
-    updateAnyOptions(); 
-    updateDashboard();
-}
 
     function buildFormFields() {
-        let anyHtml = ""; for (let i = 1; i <= 4; i++) { anyHtml += `<div class="form-group row mb-2"><label class="col-4 col-form-label font-weight-bold">Any${i}:</label><div class="col-8"><select class="form-control" id="Any${i}" onchange="updateDashboard()"><option value="">-- 選択してください --</option></select></div></div>`; }
-        document.getElementById("any-fields-container").innerHTML = anyHtml;
-
-        let slotHtml = "";
-        for (let i = 0; i < serverSlots.length; i++) {
-            const slot = serverSlots[i];
-            if (!slot.includes("前半")) { continue; }
-            const partnerSlot = serverSlots[i+1] || "";
-
-            slotHtml += `<div class="border p-2 mb-2 rounded bg-light">
-                <div class="mb-1"><span class="badge badge-primary">${slot.replace("前半","")}クール (前後半ペア領域)</span></div>`;
-
+        let aH = ""; for (let i = 1; i <= 4; i++) aH += `<div class="form-group row"><label class="col-4 font-weight-bold">Any${i}:</label><div class="col-8"><select class="form-control" id="Any${i}" onchange="updateDashboard()"><option value="">--</option></select></div></div>`;
+        document.getElementById("any-fields-container").innerHTML = aH;
+        let sH = "";
+        serverSlots.forEach((s, i) => {
+            if (!s.includes("前半")) return;
+            let pS = serverSlots[i + 1] || "";
+            sH += `<div class="border p-2 mb-2 rounded bg-light"><div class="mb-1"><span class="badge badge-primary">${s.replace("前半", "")}クール</span></div>`;
             for (let p = 1; p <= 8; p++) {
-                // 前半行の組み立て
-                slotHtml += `<div class="form-group row mb-1 align-items-center" id="wrapper_${slot}p${p}">
-                    <div class="col-4 pr-0 d-flex align-items-center justify-content-between">
-                        <label class="mb-0 text-dark font-weight-bold" style="font-size:0.8rem;">第${p}希望(前):</label>
-                        <div class="custom-control custom-checkbox ml-2"><input type="checkbox" class="custom-control-input" id="2w_${slot}p${p}" onchange="recalcRowDomain('${slot}', '${partnerSlot}', ${p})"><label class="custom-control-label text-primary font-weight-bold" for="2w_${slot}p${p}" style="font-size:0.75rem; cursor:pointer;">2W</label></div>
-                    </div>
-                    <div class="col-8"><select class="form-control form-control-sm" id="${slot}p${p}" onchange="handleSelectChange('${slot}', '${partnerSlot}', ${p}, false)">${buildOptions(slot, p, false)}</select></div>
-                </div>`;
-
-                // 後半行の組み立て
-                slotHtml += `<div class="form-group row mb-1 align-items-center block-blackout" id="wrapper_${partnerSlot}p${p}">
-                    <div class="col-4 pr-0"><label class="mb-0 text-muted" style="font-size:0.8rem;">第${p}希望(後):</label></div>
-                    <div class="col-8"><select class="form-control form-control-sm" id="${partnerSlot}p${p}" disabled onchange="handleSelectChange('${slot}', '${partnerSlot}', ${p}, true);">${buildOptions(partnerSlot, p, false)}</select></div>
-                </div><hr class="my-1">`;
+                sH += `<div class="form-group row mb-1" id="wrapper_${s}p${p}"><div class="col-4 d-flex align-items-center"><label class="font-weight-bold m-0">P${p}(前):</label><input type="checkbox" class="ml-2" id="2w_${s}p${p}" onchange="recalcRowDomain('${s}','${pS}',${p})"></div><div class="col-8"><select class="form-control" id="${s}p${p}" onchange="handleSelectChange('${s}','${pS}',${p},false)">${buildOptions(s, p, false)}</select></div></div><div class="form-group row mb-1 block-blackout" id="wrapper_${pS}p${p}"><div class="col-4">P${p}(後):</div><div class="col-8"><select class="form-control" id="${pS}p${p}" disabled onchange="handleSelectChange('${s}','${pS}',${p},true)">${buildOptions(pS, p, false)}</select></div></div><hr>`;
             }
-            slotHtml += `</div>`;
-        }
-        document.getElementById("slot-fields-container").innerHTML = slotHtml;
-    }
-
-    function applyFormValues(data) {
-        for (let p = 1; p <= 4; p++) { if (data[`Any${p}`]) document.getElementById(`Any${p}`).value = data[`Any${p}`]; }
-        for (let i = 0; i < serverSlots.length; i++) {
-            const slot = serverSlots[i]; if (!slot.includes("前半")) continue;
-            const partnerSlot = serverSlots[i+1] || "";
-            for (let p = 1; p <= 8; p++) {
-                if (data[`2w_${slot}p${p}`] !== undefined) {
-                    const chk = document.getElementById(`2w_${slot}p${p}`);
-                    if (chk) { chk.checked = !!data[`2w_${slot}p${p}`]; }
-                }
-                if (data[`${slot}p${p}`]) document.getElementById(`${slot}p${p}`).value = data[`${slot}p${p}`];
-                if (data[`${partnerSlot}p${p}`]) document.getElementById(`${partnerSlot}p${p}`).value = data[`${partnerSlot}p${p}`];
-                recalcRowDomain(slot, partnerSlot, p);
-            }
-        }
+            sH += `</div>`;
+        });
+        document.getElementById("slot-fields-container").innerHTML = sH;
     }
 
     function updateDashboard() {
-        let calHtml = "";
-        serverSlots.forEach(slot => {
-            let el = document.getElementById(`${slot}p1`), val = el ? el.value : "", dept = serverDepartments.find(d => d.id == val);
-            let name = dept ? dept.name : '<span class="text-muted">未選択</span>';
-            let ratio = Number(serverRatios.Slots?.[`${slot}p1`]?.[val] || 0);
-            calHtml += `<div class="timeline-item"><div class="font-weight-bold" style="font-size:0.85rem;">${slot}</div><div class="text-primary font-weight-bold" style="font-size:0.9rem;">${name} <small class="text-danger">[${ratio.toFixed(1)}倍]</small></div></div>`;
+        let h = "";
+        serverSlots.forEach(s => {
+            let v = document.getElementById(`${s}p1`)?.value;
+            let n = serverDeps.find(d => d.id == v)?.name || "未選択";
+            h += `<div class="border-left pl-2 mb-2"><b>${s}</b><br>${n}</div>`;
         });
-        document.getElementById("calendar-body").innerHTML = calHtml;
+        document.getElementById("calendar-body").innerHTML = h;
     }
 
     function updateAnyOptions() {
-        let selectedP1Ids = [];
-        serverSlots.forEach(slot => { let el = document.getElementById(`${slot}p1`); if (el && el.value) selectedP1Ids.push(el.value); });
-        let uniqueP1Ids = [...new Set(selectedP1Ids)];
-        for (let p = 1; p <= 4; p++) {
-            let anyEl = document.getElementById(`Any${p}`); if (!anyEl) continue;
-            let currentVal = anyEl.value, optionsHtml = '<option value="">-- 選択してください --</option>';
-            uniqueP1Ids.forEach(cid => { let dept = serverDepartments.find(d => d.id == cid); if (dept) optionsHtml += `<option value="${dept.id}">${dept.name}</option>`; });
-            anyEl.innerHTML = optionsHtml; anyEl.value = uniqueP1Ids.includes(currentVal) ? currentVal : "";
+        let ids = [...new Set(serverSlots.map(s => document.getElementById(`${s}p1`)?.value).filter(v => v))];
+        for (let i = 1; i <= 4; i++) {
+            let e = document.getElementById(`Any${i}`), v = e.value;
+            e.innerHTML = '<option value="">--</option>' + ids.map(id => `<option value="${id}">${serverDeps.find(d => d.id == id)?.name}</option>`).join("");
+            e.value = ids.includes(v) ? v : "";
         }
     }
 
-    function submitData() {
-        const studentId = document.getElementById("student_id").value.trim();
-        if (!/^\d{6}$/.test(studentId)) { alert("学籍番号は半角数字6桁です。"); return; }
-
-        let payload = { line_uid: liffUser.uid, student_id: studentId };
-        for (let p = 1; p <= 4; p++) payload[`Any${p}`] = document.getElementById(`Any${p}`).value;
-
-        for (let i = 0; i < serverSlots.length; i++) {
-            const slot = serverSlots[i]; if (!slot.includes("前半")) continue;
-            const partnerSlot = serverSlots[i+1] || "";
+    function applyFormValues(d) {
+        for (let i = 1; i <= 4; i++) if (d[`Any${i}`]) document.getElementById(`Any${i}`).value = d[`Any${i}`];
+        serverSlots.forEach(s => {
+            if (!s.includes("前半")) return;
             for (let p = 1; p <= 8; p++) {
-                payload[`2w_${slot}p${p}`] = !!(document.getElementById(`2w_${slot}p${p}`) && document.getElementById(`2w_${slot}p${p}`).checked);
-                payload[`${slot}p${p}`] = document.getElementById(`${slot}p${p}`).value;
-                payload[`${partnerSlot}p${p}`] = document.getElementById(`${partnerSlot}p${p}`).value;
+                let c = document.getElementById(`2w_${s}p${p}`);
+                if (c) c.checked = !!d[`2w_${s}p${p}`];
+                let f = document.getElementById(`${s}p${p}`), b = document.getElementById(`${serverSlots[serverSlots.indexOf(s)+1]}p${p}`);
+                if (f) f.value = d[`${s}p${p}`] || "";
+                if (b) b.value = d[`${serverSlots[serverSlots.indexOf(s)+1]}p${p}`] || "";
             }
+        });
+        cascadeRecalcAll();
+    }
+
+    function submitData() {
+        let sId = document.getElementById("student_id").value;
+        if (!/^\d{6}$/.test(sId)) return alert("学籍番号は6桁です");
+        let p = { line_uid: liffUser.uid, student_id: sId };
+        for (let i = 1; i <= 4; i++) p[`Any${i}`] = document.getElementById(`Any${i}`).value;
+        serverSlots.forEach(s => {
+            if (!s.includes("前半")) return;
+            for (let i = 1; i <= 8; i++) {
+                p[`2w_${s}p${i}`] = !!document.getElementById(`2w_${s}p${i}`)?.checked;
+                p[`${s}p${i}`] = document.getElementById(`${s}p${i}`)?.value;
+                p[`${serverSlots[serverSlots.indexOf(s)+1]}p${i}`] = document.getElementById(`${serverSlots[serverSlots.indexOf(s)+1]}p${i}`)?.value;
+            }
+        });
+        if (confirm("送信しますか？")) {
+            p.access_token = liff.getAccessToken();
+            fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(p) }).then(r => r.json()).then(r => { alert(r.message); initApp(); });
         }
-        if (!confirm("送信しますか？")) return;
-        payload["access_token"] = liff.getAccessToken();     
-        fetch(GAS_API_URL, { method: "POST", mode: "cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload) })
-            .then(res => res.json()).then(res => { alert(res.message); initializeApp(); });
     }
 </script>
 </body>
