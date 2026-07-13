@@ -20,7 +20,7 @@
 </head>
 <body>
 <div class="fixed-header">
-    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.64</span></div>
+    <div class="bg-dark text-white p-2 text-center font-weight-bold" style="font-size: 0.95rem;">臨床実習 希望調査システム <span class="badge badge-info">ver0.65</span></div>
     <div id="login-info" class="text-center bg-info text-white p-1 font-weight-bold" style="font-size: 0.75rem; display: none;">ログイン中：学籍番号 <span id="current-sid"></span> さん</div>
     <ul class="nav nav-tabs nav-fill" id="mainTab">
         <li class="nav-item"><a class="nav-link active" id="dash-tab" data-toggle="tab" href="#dash">現在の状況</a></li>
@@ -124,6 +124,7 @@
     });
 }
 
+
         excluded = [...new Set(excluded)];
 
         serverDepartments.forEach(d => {
@@ -182,6 +183,8 @@
         }
         cascadeRecalcChain(frontSlot, partnerSlot, p + 1, is2WChecked);
         updateAnyOptions(); 
+        updateDashboard();
+    }
 
     function buildFormFields() {
         let anyHtml = ""; for (let i = 1; i <= 4; i++) { anyHtml += `<div class="form-group row mb-2"><label class="col-4 col-form-label font-weight-bold">Any${i}:</label><div class="col-8"><select class="form-control" id="Any${i}" onchange="updateDashboard()"><option value="">-- 選択してください --</option></select></div></div>`; }
